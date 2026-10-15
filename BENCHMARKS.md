@@ -25,6 +25,8 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | Pipeline output unchanged when run with the machine set to the Asia/Kolkata time zone | step 4 run | `pipeline` branch `d4bc998` | pipeline |
 | 2026-10-15 | Pipeline and reference each found the same 6 `repo: {}` lines (Q2) in hour `2026-09-15-15`, independently | pipeline r1 vs reference change note | `changes/2026-10-14-reference-calculation.md`; `pipeline` `4a18564` | both |
 | 2026-10-16 | **Pipeline and reference agree exactly on a full real day** (2026-09-15, 24 hours, 1,789,869 lines): all 7 files R1–R7 equal, no differences. 1,789,839 canonical, 30 Q2, 0 duplicates, 0 flags; r2 384 rows, r4 28,862 rows, r5 28,528 rows (2 cutoffs) | `compare_outputs.py dirs` (commands in note) | `changes/2026-10-16-first-real-day-comparison.md`; reference `main` `8f60d65`, pipeline `2bea3ea` | reference |
+| 2026-10-16 | **Pipeline and reference agree exactly on a full real week** (2026-09-15 → 09-21, 168 hours, 14,964,756 lines): all 7 files R1–R7 equal. 14,964,610 canonical, 146 Q2; **9 real duplicates** (0 conflicts) deduplicated identically; r2 2,638 rows, r4 92,098 rows, r5 383,396 rows (7 daily cutoffs) | `compare_outputs.py dirs` | `changes/2026-10-16-real-week-comparison.md`; reference `04fd948`, pipeline `56878e6` | reference |
+| 2026-10-16 | After the pipeline's 3.6× speed-up (new JSON decoder), pipeline still matches 27/27 fixtures and matches the reference on hand-made G28 (lone surrogates), G30 (raw `type` text) and G31 (repeated keys) probes | comparator, fixtures and dirs mode | same note | reference |
 
 ## Spec rigour
 
@@ -44,6 +46,8 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | pipeline | real hour `2026-09-15-15`, 81,136 canonical rows | 8.7 s | — | `canon.duckdb` 286 MB = **3,528 B/row** (`payload_raw` 256 MB) | `pipeline` `4a18564` | pipeline |
 | 2026-10-16 | reference | real day 2026-09-15, 24 hours, 1,789,869 lines, 1.0 GB gzip | 92.24 s | 1,331 MB | — | `changes/2026-10-16-first-real-day-comparison.md` | reference |
 | 2026-10-16 | pipeline | same day | 508.94 s | 322 MB | `canon.duckdb` 175,648,768 B = 98.1 B/row | same | reference (ran it) |
+| 2026-10-16 | reference | real week 2026-09-15 → 09-21, 168 hours, 14,964,756 lines, 4.0 GB gzip | 576.22 s | 2,387 MB | — | `changes/2026-10-16-real-week-comparison.md` | reference |
+| 2026-10-16 | pipeline (`56878e6`, after speed-up) | same week | 223.93 s | 1,124 MB | `canon.duckdb` 1,327,247,360 B = 88.7 B/row | same | reference (ran it) |
 
 ## Estimates (not measurements)
 
@@ -55,3 +59,5 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | Month of source `.json.gz`: ~44 GB | from sampled hour sizes | pipeline |
 | 2026-10-16 | Month (30 days) run time: reference ~46 min, pipeline ~4.2 h | real-day times × 30 | reference |
 | 2026-10-16 | Pipeline `canon.duckdb`, month: ~6.9 GB | 98.1 B/row × ~70M rows | reference |
+| 2026-10-16 | Month (30 days) run time: reference ~41 min, pipeline ~16 min | real-week times × 30/7 | reference |
+| 2026-10-16 | Pipeline `canon.duckdb`, month: ~5.7 GB | 1.33 GB × 30/7 | reference |
