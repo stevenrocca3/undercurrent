@@ -91,3 +91,29 @@ Run outputs: `~/undercurrent-data/runs/2026-09-month-pipe-f5bf11d/` (including `
 - **Dry runs.** The dry runs are free. type_by_hour scans 1,143,645,956 B, ids_by_hour 1,147,906,704 B and stars 72,920,720,046 B, about 75 GB in total, or 7.5% of the monthly allowance.
 - **Fix.** `gate1.sh` had passed each query to `bq` as an argument, where the SQL's leading `--` comment is read as a flag (`FATAL Flags parsing error`). It now feeds the query on stdin.
 - **PATH.** `bq` also needs `gcloud` on PATH to authenticate. `gate1.yml` already adds it.
+
+## First real reconciliation (local, before the CI run)
+
+**Queries.** The three queries ran in the sandbox project in about 30 s, scanning 75 GB of the free 1 TB. The exports are in `~/undercurrent-data/runs/bigquery-2026-09/`: 11,009, 720 and 18,769 rows.
+
+**Raw result.** `reconcile.py` ran against the pipeline's month output (`f5bf11d`): 30,498 cells, **311 out of tolerance**, all `unexplained`, so a fail. Our count was the lower one in every cell.
+
+**Month totals.**
+- **ForkEvent:** ours 199,442, theirs 200,225. That is −783, exactly our Q2 count.
+- **The other 7 affected types:** −40 together, exactly our 40 duplicates. PullRequestEvent −15, IssueCommentEvent −9, WatchEvent −8, PullRequestReviewEvent −4, IssuesEvent −2, CommitCommentEvent −1, ReleaseEvent −1.
+- **The other 8 types:** equal.
+- **Distinct ids:** theirs is +783. BigQuery collapses duplicates in that count, so only the Q2 lines remain.
+
+**Cause 1, Q2 (`parse_or_schema`).**
+- **What the lines are.** All 783 Q2 lines are `ForkEvent`s whose `repo` is `{}` (no `repo.id`). The forkee has `"private": true`, so these look like forks of now-private repos with the repo stripped.
+- **Our rule.** §2 says a missing `repo.id` is Q2, and F19 covers `repo: {}`.
+- **BigQuery.** It keeps these rows with a null repo.
+
+**Cause 2, duplicates (`dedup_policy`).** §3 keeps one copy of each `event_id`. BigQuery's `COUNT(*)` counts every copy.
+
+**Per-cell proof.** For **every one of the 30,498 cells**, including those inside tolerance, (theirs − ours) was computed from the pipeline's output data. Each gap equals Q2 lines in the cell (by `created_at` hour and type) + duplicate copies in the cell. For stars, the duplicate `WatchEvent`/`started` copies count by (repo, date). The result: 0 cells unaccounted for. No time-bucketing differences exist. Every event is in the same hour on both sides.
+
+- **What was read.** The output data: `quarantine`, `duplicates` and `events` in `canon.duckdb`. No pipeline code was read.
+- **Categories file.** Only the 311 out-of-tolerance cells are written to `evidence/reconciliation-categories.csv`, each with its reason: 301 `parse_or_schema` and 10 `dedup_policy`. A cell was only categorized when its gap matched exactly and came from a single cause.
+
+**Rerun.** `reconcile.py --categories evidence/reconciliation-categories.csv`: **0 unexplained, pass.** `gate1.sh` picks up the file automatically, so the CI run should pass criterion 4 on the same data.
