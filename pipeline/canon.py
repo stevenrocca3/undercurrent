@@ -137,8 +137,9 @@ def classify(raw, partial):
         "payload_action": _str_or_none(_sub(payload, "action")),
         "payload_raw": members.get("payload", (None, None))[1],
     }
-    if not all(_utf8_ok(v) for v in fields.values() if isinstance(v, str)):
-        return "Q1", None  # SPEC-GAPS G28 (provisional)
+    text_fields = (event_id, event_type, fields["actor_login"], fields["repo_name"], fields["payload_action"])
+    if not all(_utf8_ok(v) for v in text_fields if isinstance(v, str)):
+        return "Q1", None  # §2 Q1, G28: lone surrogate in a field stored as text; payload is not checked
 
     if any(v is None for v in (event_id, event_type, repo_id, actor_id, created_at, get("public"), payload)):
         return "Q2", None
@@ -197,6 +198,7 @@ class CanonStore:
     def __init__(self, db_path, ingested_at):
         db_path.unlink(missing_ok=True)
         self.con = duckdb.connect(str(db_path))
+        self.con.execute("SET memory_limit = '3GB'")  # 8 GB machine: larger work spills to <db>.tmp
         self.spool_dir = db_path.parent
         self.ingested_at = _ts(ingested_at)
         for name, columns in (("canon", CANON_COLUMNS), ("quarantine", QUARANTINE_COLUMNS)):
@@ -233,7 +235,7 @@ class CanonStore:
                 select = ", ".join("unhex(raw_line)" if c == "raw_line" else c for c in columns)
                 self.con.execute(
                     f"INSERT INTO {table} SELECT {select} FROM read_json(?, format='newline_delimited', "
-                    f"columns={json_types!r}, maximum_object_size=1073741824)", [str(path)])
+                    f"columns={json_types!r}, maximum_object_size=268435456)", [str(path)])
             path.unlink()
 
     def close(self):

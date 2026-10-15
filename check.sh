@@ -18,4 +18,4 @@ trap 'rm -rf "$out"' EXIT
 "$PY" -m unittest tools/test_compare_outputs.py
 "$PY" reference/reference.py fixtures fixtures "$out"
 "$PY" tools/compare_outputs.py fixtures fixtures "$out"
-"$PY" -m unittest pipeline/test_ingest.py pipeline/test_canon.py
+"$PY" -m unittest pipeline/test_ingest.py pipeline/test_canon.py pipeline/test_dedup.py

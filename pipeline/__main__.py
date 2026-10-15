@@ -3,9 +3,9 @@
     python -m pipeline run INPUT_DIR FIRST_HOUR LAST_HOUR OUT_DIR [--cutoff T ...]
     python -m pipeline fixtures FIXTURES_DIR OUT_ROOT
 
-Hours are inclusive, e.g. 2026-09-01T00:00:00Z. Writes canon.duckdb (canon-v1
-and quarantine tables), r1.csv, registry.csv (R6) and registry_evidence.csv;
-later steps add r2-r5 and flags.
+Hours are inclusive, e.g. 2026-09-01T00:00:00Z. Writes canon.duckdb (canon-v1,
+quarantine, and the dedup tables), r1.csv, r3.csv, registry.csv (R6) and
+registry_evidence.csv; later steps add r2, r4, r5 and flags.
 """
 
 import argparse
@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from pipeline.canon import CanonStore, classify
+from pipeline.dedup import deduplicate
 from pipeline.ingest import HourRead, format_timestamp, parse_timestamp, requested_hours
 
 
@@ -49,8 +50,10 @@ def run(input_dir, first, last, out_dir, cutoffs):
             store.add(source_line, raw, code, fields)
         store.end_hour()
         reads.append(read)
+    r3 = deduplicate(store.con)
     store.close()
     write_csv(out_dir / "r1.csv", ["line_status", "count"], sorted(line_status.items()))
+    write_csv(out_dir / "r3.csv", ["distinct_event_ids", "duplicate_count", "conflict_count"], [r3])
     write_csv(out_dir / "registry.csv", ["source_file_hour", "status"],
               [[format_timestamp(r.hour), r.status] for r in reads])
     write_csv(out_dir / "registry_evidence.csv",
