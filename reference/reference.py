@@ -38,6 +38,7 @@ EVENT_TYPES = set(
 )
 CHUNK = 1 << 20
 TS_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 # ---------- time helpers ----------
@@ -47,11 +48,11 @@ def parse_hour(s):
 
 
 def to_us(dt):
-    return (dt - datetime(1970, 1, 1, tzinfo=timezone.utc)) // timedelta(microseconds=1)
+    return (dt - EPOCH) // timedelta(microseconds=1)
 
 
 def fmt_ts(us):
-    return (datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=us)).strftime(TS_FORMAT)
+    return (EPOCH + timedelta(microseconds=us)).strftime(TS_FORMAT)
 
 
 def hour_file_name(dt):
@@ -134,6 +135,25 @@ def utf8_ok(s):
         return False
 
 
+WS = json.decoder.WHITESPACE.match
+DECODER = json.JSONDecoder()
+
+
+def raw_value(text, key):
+    """The raw text of top-level `key` in JSON object `text`, exactly as written (G30).
+    If the key repeats, the last one wins, as in json.loads."""
+    found, i = None, WS(text, 0).end() + 1  # past "{"
+    while text[WS(text, i).end()] != "}":
+        name, i = json.decoder.scanstring(text, WS(text, i).end() + 1)
+        i = WS(text, WS(text, i).end() + 1).end()  # past ":"
+        end = DECODER.raw_decode(text, i)[1]
+        if name == key:
+            found = text[i:end]
+        i = WS(text, end).end()
+        i += text[i] == ","
+    return found
+
+
 def get(obj, *keys):
     for k in keys:
         if not isinstance(obj, dict) or obj.get(k) is None:
@@ -147,7 +167,8 @@ def classify(raw, is_partial):
     if is_partial:
         return "Q1", None
     try:
-        obj = json.loads(raw.decode("utf-8"))
+        text = raw.decode("utf-8")
+        obj = json.loads(text)
     except (UnicodeDecodeError, ValueError):
         return "Q1", None
     if not isinstance(obj, dict):
@@ -168,18 +189,16 @@ def classify(raw, is_partial):
         return "Q3", None
     if not isinstance(obj["id"], str) or not is_int64(obj["repo"]["id"]) or not is_int64(obj["actor"]["id"]):
         return "Q4", None
-    payload = obj["payload"]
-    action = payload.get("action") if isinstance(payload, dict) else None
     etype = obj["type"]
     return None, {
         "record_hash": hashlib.sha256(raw[:-1] if raw.endswith(b"\r") else raw).hexdigest(),  # §2: no \r\n
         "event_id": obj["id"],
-        "event_type": etype if isinstance(etype, str) else json.dumps(etype),
+        "event_type": etype if isinstance(etype, str) else raw_value(text, "type"),
         "recognized": isinstance(etype, str) and etype in EVENT_TYPES,
         "repo_id": obj["repo"]["id"],
         "event_us": to_us(event_dt),
         "event_date": event_dt.strftime("%Y-%m-%d"),
-        "is_star": etype == "WatchEvent" and action == "started",
+        "is_star": etype == "WatchEvent" and get(obj, "payload", "action") == "started",
     }
 
 
