@@ -2,11 +2,11 @@
 
 **From:** Steven (owner). Drafted 2026-10-14 by the reference agent from the spec only.
 **For:** the pipeline agent. Per §6 this must be a different agent from the reference author.
-**Spec:** `01-event-semantics.md` v0.6. It is authoritative. If this brief and the spec disagree, the spec wins; tell Steven.
+**Spec:** `01-event-semantics.md` v0.7. It is authoritative. If this brief and the spec disagree, the spec wins; tell Steven.
 
 ## When to start
 
-**After the verifier's fixtures F18+ are committed** (`briefs/verifier-F18-plus.md`). §7 says expected outputs are committed before the component they test is built. Start once Steven says those fixtures are in.
+**Ready now.** Fixtures F01–F27 are committed and pass against the reference (`./check.sh`: 27/27). Gaps G23–G25 are decided in spec v0.7: IDs outside int64 are `Q4`, CSV quoting is RFC 4180 with LF endings, and a line with invalid UTF-8 is `Q1`. `fixtures/SPEC-GAPS.md` has no OPEN entries.
 
 ## Independence rules (hard)
 
@@ -36,7 +36,7 @@ The pipeline for Gate 1 (§8), covering September 2026. This brief covers §8 cr
 2. **Canonical table `canon-v1`** with every field in §2. Do quarantine in the §2 order (first match wins), into a quarantine table with the §2 schema. Compute `record_hash` exactly as §2 defines it.
 3. **Deduplicate** by `event_id` only (§3), with a `conflicts` table. Its schema is up to you; only `conflict_count` is compared.
 4. **Time** (§4): `available_at = source_file_hour + 1h + 6h` for backfill; the late and future-skewed flags over kept occurrences; the point-in-time rule for R5.
-5. **R1–R7 outputs** in the exact §6 CSV contract (file names, headers, always-present rows, sort order, timestamp format, LF endings). The comparator does exact text comparison after sorting rows, so `7` and `07` differ.
+5. **R1–R7 outputs** in the exact §6 CSV contract (file names, headers, always-present rows, sort order, timestamp format, LF endings, RFC 4180 quoting). The comparator does exact text comparison after sorting rows, so `7` and `07` differ.
 6. **Replay vs batch** (§4, §8 criterion 3): on identical input, both modes give byte-identical canonical tables, compared by content hash after a fixed sort.
 
 ### Interface

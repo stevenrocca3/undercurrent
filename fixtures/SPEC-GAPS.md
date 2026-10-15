@@ -100,15 +100,18 @@ These are places where `01-event-semantics.md` v0.2 was silent or ambiguous, so 
 - **Decision:** strict form `YYYY-MM-DDTHH:MM:SS[.f{1,6}](Z|±HH:MM)`: uppercase `T` and `Z`, at most 6 fractional digits, no leap second `:60`.
 - **Depends:** F21.
 
-## G23. `repo.id` / `actor.id` outside int64 range (§2, Q4): OPEN
+## G23. `repo.id` / `actor.id` outside int64 range (§2, Q4): DECIDED 2026-10-14 (owner)
 - **Gap:** §2 states `actor.id` and `repo.id` are int64, and Q4 requires them to be integers. The spec does not state whether an integer exceeding 64-bit signed bounds (`[-2^63, 2^63 - 1]`) triggers Q4, is rejected, or is an error.
-- **Provisional behaviour:** Avoided in fixtures by keeping all integer IDs within normal int64 range. Raised for Steven to decide.
+- **Decision:** Q4. Folded into §2 in v0.7.
+- **Depends:** none (not exercised).
 
-## G24. CSV quoting and escaping rules (§6): OPEN
+## G24. CSV quoting and escaping rules (§6): DECIDED 2026-10-14 (owner)
 - **Gap:** §6 specifies CSV column formats but does not specify RFC 4180 escaping/quoting when cell content contains commas, quotes, or newlines (e.g. if a non-string `type` was a JSON object `{"a":1,"b":2}`).
-- **Provisional behaviour:** Avoided in F22 by using `[1]` for non-string type, which contains neither commas nor quotes. Raised for Steven to decide.
+- **Decision:** RFC 4180 quoting with LF line endings. A cell containing `,`, `"` or a line break is quoted, with inner `"` doubled; nothing else is quoted, and cell text is never trimmed. Folded into §6 in v0.7.
+- **Depends:** none (F22 uses `[1]`, which needs no quoting).
 
-## G25. Invalid UTF-8 bytes in canonical fields (§2): OPEN
+## G25. Invalid UTF-8 bytes in canonical fields (§2): DECIDED 2026-10-14 (owner)
 - **Gap:** If invalid UTF-8 bytes occur inside a canonical field (e.g. non-string or raw field that decoded partially), writing it to CSV would violate UTF-8 encoding rules (§6).
-- **Provisional behaviour:** Invalid UTF-8 is tested in F18 where it causes line-level parse failure (quarantined as Q1). No canonical line contains invalid UTF-8. Raised for Steven to decide.
+- **Decision:** a line containing invalid UTF-8 anywhere is Q1, so no canonical field can hold it. Folded into §2 in v0.7.
+- **Depends:** F18 line 13.
 

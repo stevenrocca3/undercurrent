@@ -1,6 +1,6 @@
 # 01 — Canonical Event Semantics and Verification Contract
 
-**Status:** Draft v0.6 · 2026-10-14
+**Status:** Draft v0.7 · 2026-10-14
 **Owner:** Steven (approves all changes)
 **Applies to:** every pipeline component, verifier, and evidence artifact
 
@@ -72,10 +72,10 @@ Files outside the requested hour range are ignored.
 
 **Quarantine rules.** A line goes to the quarantine table with exactly one reason code. The checks run in the order below, and the **first match wins**:
 
-- `Q1`: the line is not valid JSON, or is valid JSON but not an object (e.g. `[1,2]`, `42`, an empty line). The partial last line of a `truncated` file is also `Q1`.
+- `Q1`: the line is not valid JSON, is not valid UTF-8, or is valid JSON but not an object (e.g. `[1,2]`, `42`, an empty line). The partial last line of a `truncated` file is also `Q1`.
 - `Q2`: missing `id`, `type`, `repo.id`, `actor.id`, `created_at`, `public`, or `payload`. A JSON `null` in any of these counts as missing.
 - `Q3`: `created_at` is not a string of the form `YYYY-MM-DDTHH:MM:SS[.f{1,6}](Z|±HH:MM)` that is also a valid instant. That means uppercase `T` and `Z`, at most 6 fractional digits, and no leap second `:60`. Accepted values are converted to UTC.
-- `Q4`: an ID field has the wrong JSON type. `id` must be a string; a numeric `id` is never cast. `actor.id` and `repo.id` must be integers, not float, string or bool.
+- `Q4`: an ID field has the wrong JSON type or representation. `id` must be a string; a numeric `id` is never cast. `actor.id` and `repo.id` must be integers within signed 64-bit bounds (`[-2^63, 2^63 - 1]`); integers outside this range, floats, strings or bools are `Q4`.
 
 `org.id` never triggers quarantine. If it has the wrong type, `org_id` is stored as null.
 
@@ -199,7 +199,8 @@ A **star event** is exactly `type == "WatchEvent"` with `payload.action == "star
 | `flags.csv` (R7) | `flag,count`. Rows `future_skewed,late,unrecognized_type` are always present. |
 
 Formatting rules for every file:
-- Header row, comma-separated, LF line endings.
+- Header row, comma-separated, LF line endings, UTF-8.
+- Quoting per RFC 4180, except that lines end in LF: a cell containing `,`, `"` or a line break is wrapped in `"…"`, with each inner `"` doubled. No other cell is quoted. Cell text is never trimmed.
 - Timestamps as `YYYY-MM-DDTHH:MM:SSZ`, dates as `YYYY-MM-DD`.
 - Rows sorted ascending by every column, left to right.
 - Zero-count rows are omitted, except in `r1`, `r3` and `flags`.
@@ -233,6 +234,16 @@ Outputs are written to `reference_out/`. The comparison against the pipeline is 
 | F15 | ID field of the wrong JSON type (`Q4`): numeric `id`, string `repo.id`, string `actor.id` |
 | F16 | truncated hour: gzip stream ends mid-file; complete lines kept, partial line `Q1` |
 | F17 | unreadable hour: file is not gzip; contributes no lines |
+| F18 | valid JSON that is not an object; empty line; invalid UTF-8 bytes (`Q1`) |
+| F19 | required fields present as `null`; missing `public`; `repo: {}` (`Q2`) |
+| F20 | `Q4` ID types (bool `repo.id`, float `actor.id`) and `Q2` beating `Q4` |
+| F21 | `Q3` timestamp strictness, plus valid 6-digit fraction and `+05:30` offset |
+| F22 | `type`, `public`, `payload` with non-standard JSON types (presence-only checks) |
+| F23 | registry corner cases: cut in first line, trailing bytes, 0-byte, empty gzip, multi-member, bad CRC |
+| F24 | CRLF excluded from `record_hash`; final line without trailing LF |
+| F25 | hour files outside the requested range are ignored |
+| F26 | flags use the kept occurrence's `source_file_hour` |
+| F27 | R5 boundaries: `event_time == t` excluded, `== t − 7d` included, `available_at == t` included |
 
 Fixtures live in `fixtures/`, one directory per case. Each carries expected outputs for R1–R7 in the §6 CSV contract.
 
@@ -263,6 +274,9 @@ Gate 1 fails if any check above fails, or if any evidence artifact was produced 
 | OPEN-2 | Historical availability lag `L` | 6h, recalibrated to measured live p99 | 2026-10-14, v0.2 |
 | OPEN-3 | Source-reconciliation tolerance | ≤ 0.1% relative difference per cell, all §5.2 metrics | 2026-10-14, v0.2 |
 | — | Gate 1 R5 cutoffs | daily 00:00Z, 2026-09-08 → 2026-10-01 (24 cutoffs) | 2026-10-14, v0.6 |
+| G23 | `actor.id` / `repo.id` outside int64 | `Q4` | 2026-10-14, v0.7 |
+| G24 | CSV quoting | RFC 4180 quoting, LF line endings, no trimming | 2026-10-14, v0.7 |
+| G25 | Invalid UTF-8 in a line | the whole line is `Q1`; no canonical field holds invalid UTF-8 | 2026-10-14, v0.7 |
 
 No open decisions remain in this document.
 
