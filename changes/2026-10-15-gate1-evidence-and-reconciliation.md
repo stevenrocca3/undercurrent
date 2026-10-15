@@ -80,3 +80,7 @@ All of it is neutral tooling in `tools/`. None of it imports pipeline or referen
 - **`./check.sh`.** Passes: 33 tool tests, 27/27 fixtures for the reference, 21 pipeline tests, 27/27 fixtures for the pipeline.
 
 Run outputs: `~/undercurrent-data/runs/2026-09-month-pipe-f5bf11d/` (including `load.log`).
+
+## Follow-up: Google Cloud CLI install
+
+`brew install --cask google-cloud-sdk` failed on this Mac. macOS 14 is Homebrew Tier 3, so it tried to compile `python@3.13` from source, and that failed on a missing `CarbonCore/Folders.h` in the Command Line Tools SDK. Instead the CLI was installed from Google's official archive (`google-cloud-cli-darwin-arm.tar.gz`) into `~/google-cloud-sdk`, with its bundled Python: gcloud 589.0.0, bq 2.1.40. A runner doesn't read `~/.zshrc`, so `gate1.yml` now adds `~/google-cloud-sdk/bin` to the job's PATH.
