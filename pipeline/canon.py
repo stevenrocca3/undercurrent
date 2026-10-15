@@ -255,3 +255,26 @@ class CanonStore:
 
     def close(self):
         self.con.close()
+
+
+# §4 Replay, §8 criterion 3: tables compared by content hash after a fixed sort. ingested_at and
+# source_last_modified record when a run happened, not what the data says (G29), so they are left out.
+DIGESTED_TABLES = {
+    "canon": "SELECT * EXCLUDE (ingested_at, source_last_modified) FROM canon",
+    "quarantine": "SELECT * FROM quarantine",
+    "duplicates": "SELECT * FROM duplicates",
+}
+
+
+def table_digests(con):
+    """[(table, rows, sha256)]: each row as JSON text plus LF, in (source_file_hour, source_line) order."""
+    out = []
+    for table, select in DIGESTED_TABLES.items():
+        digest, rows = hashlib.sha256(), 0
+        result = con.execute(f"SELECT to_json(t)::VARCHAR FROM ({select}) t ORDER BY source_file_hour, source_line")
+        while batch := result.fetchmany(100_000):
+            rows += len(batch)
+            for (text,) in batch:
+                digest.update(text.encode("utf-8") + b"\n")
+        out.append((table, rows, digest.hexdigest()))
+    return out
