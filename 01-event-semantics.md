@@ -1,6 +1,6 @@
 # 01 — Canonical Event Semantics and Verification Contract
 
-**Status:** Draft v0.10 · 2026-10-15
+**Status:** Draft v0.11 · 2026-10-15
 **Owner:** Steven (approves all changes)
 **Applies to:** every pipeline component, verifier, and evidence artifact
 
@@ -82,6 +82,8 @@ Files outside the requested hour range are ignored.
 `org.id` never triggers quarantine. If it has the wrong type, `org_id` is stored as null.
 
 `type`, `public` and `payload` are checked for presence only, not JSON type. A non-string `type` is stored as its **raw JSON text exactly as it appears in the line**, never re-serialised: whitespace, key order and number spelling are kept (`[1,2]` stays `[1,2]`, `1.0` stays `1.0`). It is flagged `unrecognized_type`.
+
+**Repeated keys.** If a key appears more than once in the same JSON object, at any level, the **last** occurrence wins, for every check and every field (including the raw `type` text). `record_hash` is unaffected, since it covers the raw line.
 
 Quarantine schema: `source_file_hour, source_line, reason_code, raw_line`. Quarantined lines are counted, never silently dropped.
 
@@ -172,7 +174,7 @@ Constraints:
 - One Python file. Python handles per-line parsing and quarantine; DuckDB handles deduplication and aggregation, on disk.
 - No imports from the pipeline codebase.
 - Reads the raw `.json.gz` files directly.
-- Roughly 250 lines or fewer. Clarity over speed.
+- Roughly 350 lines or fewer. Clarity over speed.
 
 Computes, for a given set of hour files:
 
@@ -284,6 +286,8 @@ Gate 1 fails if any check above fails, or if any evidence artifact was produced 
 | G28 | Lone surrogate escape in a stored text field | `Q1` (only `id`, string `type`, `actor.login`, `repo.name`, `payload.action`) | 2026-10-15, v0.9 |
 | G29 | `ingested_at` vs replay byte-identity | replay comparison excludes `ingested_at` and `source_last_modified` | 2026-10-15, v0.9 |
 | G30 | Text of a non-string `type` | raw JSON text as it appears in the line, not re-serialised | 2026-10-15, v0.10 |
+| G31 | Repeated keys in one object | last occurrence wins, at every level | 2026-10-15, v0.11 |
+| — | Reference size limit (§6) | roughly 350 lines (was 250) | 2026-10-15, v0.11 |
 
 No open decisions remain in this document.
 
