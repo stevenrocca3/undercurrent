@@ -1,6 +1,6 @@
 # 01 — Canonical Event Semantics and Verification Contract
 
-**Status:** Draft v0.8 · 2026-10-15
+**Status:** Draft v0.9 · 2026-10-15
 **Owner:** Steven (approves all changes)
 **Applies to:** every pipeline component, verifier, and evidence artifact
 
@@ -49,12 +49,12 @@ Files outside the requested hour range are ignored.
 | `event_id` | string | no | `id` | kept as string, no trimming or casting | identity |
 | `event_type` | string | no | `type` | as-is; unrecognized types kept and flagged | filtering |
 | `actor_id` | int64 | no | `actor.id` | — | joins, distinct-actor metrics |
-| `actor_login` | string | yes | `actor.login` | raw | display only, never joined on |
+| `actor_login` | string | yes | `actor.login` | raw; null if missing or not a string | display only, never joined on |
 | `repo_id` | int64 | no | `repo.id` | — | joins, aggregation |
-| `repo_name` | string | no | `repo.name` | raw `owner/name` | display only, never joined on |
+| `repo_name` | string | yes | `repo.name` | raw `owner/name`; null if missing or not a string | display only, never joined on |
 | `org_id` | int64 | yes | `org.id` | — | optional grouping |
-| `is_public` | bool | no | `public` | — | filtering |
-| `payload_action` | string | yes | `payload.action` | as-is | e.g. star detection |
+| `is_public` | bool | yes | `public` | null if not a JSON bool | filtering |
+| `payload_action` | string | yes | `payload.action` | as-is; null if missing or not a string | e.g. star detection |
 | `payload_raw` | json | no | `payload` | stored uninterpreted | downstream models |
 | `event_time` | timestamp(µs, UTC) | no | `created_at` | ISO-8601 → UTC | when GitHub says it happened |
 | `source_file_hour` | timestamp(UTC) | no | file name | start of hour | GH Archive bucket |
@@ -74,7 +74,7 @@ Files outside the requested hour range are ignored.
 
 **Quarantine rules.** A line goes to the quarantine table with exactly one reason code. The checks run in the order below, and the **first match wins**:
 
-- `Q1`: the line is not valid JSON, is not valid UTF-8, or is valid JSON but not an object (e.g. `[1,2]`, `42`, an empty line). The partial last line of a `truncated` file is also `Q1`.
+- `Q1`: the line is not valid JSON, is not valid UTF-8, or is valid JSON but not an object (e.g. `[1,2]`, `42`, an empty line). The partial last line of a `truncated` file is also `Q1`. So is a line where a field stored as text (`id`, a string `type`, `actor.login`, `repo.name`, `payload.action`) contains a lone surrogate escape such as `\ud800`, which cannot be written as UTF-8. A surrogate *pair* is valid, and escapes elsewhere in the line (e.g. inside `payload`) are not checked.
 - `Q2`: missing `id`, `type`, `repo.id`, `actor.id`, `created_at`, `public`, or `payload`. A JSON `null` in any of these counts as missing.
 - `Q3`: `created_at` is not a string of the form `YYYY-MM-DDTHH:MM:SS[.f{1,6}](Z|±HH:MM)` that is also a valid instant. That means uppercase `T` and `Z`, at most 6 fractional digits, and no leap second `:60`. Accepted values are converted to UTC.
 - `Q4`: an ID field has the wrong JSON type or representation. `id` must be a string; a numeric `id` is never cast. `actor.id` and `repo.id` must be integers within signed 64-bit bounds (`[-2^63, 2^63 - 1]`); integers outside this range, floats, strings or bools are `Q4`.
@@ -128,7 +128,7 @@ Quarantine schema: `source_file_hour, source_line, reason_code, raw_line`. Quara
 - *Late:* `event_time < source_file_hour − 1h`
 - *Future-skewed:* `event_time > source_file_hour + 2h`
 
-**Replay.** Replay emits files in `source_file_hour` order with their original `available_at`. On identical input, replay and batch must produce byte-identical canonical tables (compared by content hash after a fixed sort).
+**Replay.** Replay emits files in `source_file_hour` order with their original `available_at`. On identical input, replay and batch must produce byte-identical canonical tables (compared by content hash after a fixed sort), excluding the operational fields `ingested_at` and `source_last_modified`, which record when a run happened, not what the data says.
 
 ---
 
@@ -280,6 +280,9 @@ Gate 1 fails if any check above fails, or if any evidence artifact was produced 
 | G24 | CSV quoting | RFC 4180 quoting, LF line endings, no trimming | 2026-10-14, v0.7 |
 | G25 | Invalid UTF-8 in a line | the whole line is `Q1`; no canonical field holds invalid UTF-8 | 2026-10-14, v0.7 |
 | G26 | Registry evidence for local files | separate `registry_evidence.csv`, not compared; no HTTP status until live ingestion | 2026-10-15, v0.8 |
+| G27 | `public` / `repo.name` wrong type or missing | `is_public` and `repo_name` nullable; null when not a bool / not a string (also `actor_login`, `payload_action`) | 2026-10-15, v0.9 |
+| G28 | Lone surrogate escape in a stored text field | `Q1` (only `id`, string `type`, `actor.login`, `repo.name`, `payload.action`) | 2026-10-15, v0.9 |
+| G29 | `ingested_at` vs replay byte-identity | replay comparison excludes `ingested_at` and `source_last_modified` | 2026-10-15, v0.9 |
 
 No open decisions remain in this document.
 
