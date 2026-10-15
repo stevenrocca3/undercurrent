@@ -77,6 +77,13 @@ class TestClassify(unittest.TestCase):
         _, fields = classify(line(org={"id": "7"}, repo={"id": 2, "name": 5}, payload={"action": 1}), False)
         self.assertEqual((fields["org_id"], fields["repo_name"], fields["payload_action"]), (None, None, None))
 
+    def test_non_string_type_keeps_raw_text_last_key_wins(self):
+        _, fields = classify(b'{"type":"PushEvent","id":"1","type":[1, 2],"actor":{"id":1},"repo":{"id":2},'
+                             b'"payload":{},"public":true,"created_at":"2026-09-01T00:00:00Z"}', False)
+        self.assertEqual(fields["event_type"], "[1, 2]")  # G30 raw text, G31 last wins
+        _, fields = classify(line(type="PushEvent"), False)
+        self.assertEqual(fields["event_type"], "PushEvent")
+
     def test_record_hash_drops_one_trailing_cr(self):
         self.assertEqual(record_hash(b"x\r"), record_hash(b"x"))
         self.assertNotEqual(record_hash(b"x\r\r"), record_hash(b"x"))

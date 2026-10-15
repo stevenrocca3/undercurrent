@@ -26,6 +26,7 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | Pipeline and reference each found the same 6 `repo: {}` lines (Q2) in hour `2026-09-15-15`, independently | pipeline r1 vs reference change note | `changes/2026-10-14-reference-calculation.md`; `pipeline` `4a18564` | both |
 | 2026-10-15 | Pipeline matches **27/27** fixtures with `payload_raw` stored as null (G32); 37 tests pass | `python -m pipeline fixtures` + `compare_outputs.py fixtures` | `changes/2026-10-15-pipeline-payload-raw-null.md`, `pipeline` branch | pipeline |
 | 2026-10-16 | **Pipeline and reference agree exactly on a full real day** (2026-09-15, 24 hours, 1,789,869 lines): all 7 files R1–R7 equal, no differences. 1,789,839 canonical, 30 Q2, 0 duplicates, 0 flags; r2 384 rows, r4 28,862 rows, r5 28,528 rows (2 cutoffs) | `compare_outputs.py dirs` (commands in note) | `changes/2026-10-16-first-real-day-comparison.md`; reference `main` `8f60d65`, pipeline `2bea3ea` | reference |
+| 2026-10-16 | Pipeline speed-up changes no output: R1–R7 identical, and `canon` (1,789,839 rows) and `quarantine` (30 rows) identical row for row except `ingested_at`, before vs after, on 2026-09-15; 27/27 fixtures; 38 tests | `compare_outputs.py dirs` + DuckDB `EXCEPT ALL` both ways | `changes/2026-10-16-pipeline-speedup.md` | pipeline |
 
 ## Spec rigour
 
@@ -48,6 +49,7 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-16 | pipeline | same day | 508.94 s | 322 MB | `canon.duckdb` 175,648,768 B = 98.1 B/row | same | reference (ran it) |
 | 2026-10-16 | pipeline `f639320` (same code as `2bea3ea`) | same day, rerun on an otherwise idle machine | **124.36 s** | 328 MB (max RSS) | `canon.duckdb` 169,619,456 B | `changes/2026-10-16-pipeline-profile-real-day.md` | pipeline |
 | 2026-10-16 | pipeline `f639320`, by phase (driver script) | same day | 124.6 s total: classify 65.5, add 35.6, load 11.9, read 11.4, dedup 0.1, metrics 0.1 | — | — | `changes/2026-10-16-pipeline-profile-real-day.md` | pipeline |
+| 2026-10-16 | pipeline, speed-up (C JSON decoder, slimmer spool rows, 8 worker processes) | same day | **34.10 s** (3.6× faster than 124.36 s; reference 92.24 s) | 324 MB max RSS per process; 724 MB total across processes (`ps` sampled every 0.5 s) | `canon.duckdb` 173,027,328 B | `changes/2026-10-16-pipeline-speedup.md` | pipeline |
 
 ## Estimates (not measurements)
 

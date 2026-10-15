@@ -12,10 +12,11 @@ import argparse
 import json
 import sys
 from collections import Counter
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pipeline.canon import CanonStore, classify
+from pipeline.canon import CanonStore, spool_hour
 from pipeline.dedup import deduplicate
 from pipeline.metrics import events_by_hour_and_type, flag_counts, stars_as_of, stars_by_repo_and_date
 from pipeline.ingest import HourRead, format_timestamp, parse_timestamp, requested_hours
@@ -42,15 +43,13 @@ def run(input_dir, first, last, out_dir, cutoffs):
     store = CanonStore(out_dir / "canon.duckdb", datetime.now(timezone.utc))
     line_status = Counter({code: 0 for code in R1_ROWS})
     reads = []
-    for hour in requested_hours(first, last):
-        read = HourRead(input_dir, hour)
-        store.begin_hour(hour)
-        for source_line, raw, partial in read.lines():
-            code, fields = classify(raw, partial)
-            line_status[code] += 1
-            store.add(source_line, raw, code, fields)
-        store.end_hour()
-        reads.append(read)
+    hours = list(requested_hours(first, last))
+    # Hours are read and classified in parallel; results come back in hour order and are loaded one by one.
+    with ProcessPoolExecutor() as pool:
+        for read, counts in pool.map(spool_hour, [HourRead(input_dir, h) for h in hours], [out_dir] * len(hours)):
+            line_status.update(counts)
+            store.load_hour(read.hour, out_dir)
+            reads.append(read)
     r3 = deduplicate(store.con)
     r2 = events_by_hour_and_type(store.con)
     r4 = stars_by_repo_and_date(store.con)

@@ -9,6 +9,7 @@ records and quarantined lines to a DuckDB file on disk.
 import hashlib
 import json
 import re
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from json.decoder import scanstring
 
@@ -115,19 +116,21 @@ def classify(raw, partial):
     if partial:
         return "Q1", None
     try:
-        members = parse_object(raw.decode("utf-8"))
+        text = raw.decode("utf-8")
+        obj = DECODER.decode(text)  # C scanner; same grammar as parse_object, last duplicate key wins
     except (UnicodeDecodeError, ValueError, RecursionError):
         return "Q1", None
+    if not isinstance(obj, dict):
+        return "Q1", None
 
-    def get(key):
-        return members[key][0] if key in members else None
-
+    get = obj.get
     event_id, event_type, created_at, public = get("id"), get("type"), get("created_at"), get("public")
     actor, repo, org, payload = get("actor"), get("repo"), get("org"), get("payload")
     actor_id, repo_id = _sub(actor, "id"), _sub(repo, "id")
     fields = {
         "event_id": event_id,
-        "event_type": event_type if isinstance(event_type, str) else members.get("type", (None, None))[1],
+        # G30: a non-string type is stored as its raw text; only then is the slower raw parse needed
+        "event_type": event_type if isinstance(event_type, str) or event_type is None else parse_object(text)["type"][1],
         "actor_id": actor_id,
         "actor_login": _str_or_none(_sub(actor, "login")),
         "repo_id": repo_id,
@@ -183,60 +186,72 @@ QUARANTINE_COLUMNS = {
 }
 
 
-def _ts(dt):
-    return None if dt is None else dt.strftime("%Y-%m-%dT%H:%M:%S.%f")
+# Columns that are the same for every row of an hour or a run are set in SQL at load time,
+# not written per row (§2, §4; G32: payload_raw is null in Gate 1 runs).
+HOUR_CONSTANTS = ("payload_raw", "source_file_hour", "available_at", "source_last_modified",
+                  "ingested_at", "schema_version")
+SPOOLED = [c for c in CANON_COLUMNS if c not in HOUR_CONSTANTS]
+
+
+def spool_paths(spool_dir, hour):
+    stem = spool_dir / f"{hour:%Y-%m-%dT%H}"
+    return stem.with_suffix(".canon.ndjson"), stem.with_suffix(".quarantine.ndjson")
+
+
+def spool_hour(read, spool_dir):
+    """Classify one hour's lines into two NDJSON spool files. Return the R1 line-status counts.
+
+    Runs in a worker process; `read` is an ingest.HourRead whose registry fields are set on return.
+    """
+    counts = Counter()
+    canon_path, quarantine_path = spool_paths(spool_dir, read.hour)
+    with open(canon_path, "w", encoding="utf-8") as canon, open(quarantine_path, "w", encoding="utf-8") as quarantine:
+        for source_line, raw, partial in read.lines():
+            code, fields = classify(raw, partial)
+            counts[code] += 1
+            if code == "canonical":
+                fields["event_time"] = fields["event_time"].isoformat()
+                fields["source_line"] = source_line
+                fields["record_hash"] = record_hash(raw)
+                canon.write(json.dumps(fields) + "\n")
+            else:
+                quarantine.write(json.dumps({"source_line": source_line, "reason_code": code,
+                                             "raw_line": raw.hex()}) + "\n")
+    return read, counts
 
 
 class CanonStore:
-    """canon-v1 and quarantine tables in a DuckDB file.
-
-    Rows for one hour are spooled to NDJSON files next to the database, then
-    loaded in one statement, so memory holds one row at a time.
-    """
+    """canon-v1 and quarantine tables in a DuckDB file, loaded one hour's spool files at a time."""
 
     def __init__(self, db_path, ingested_at):
         db_path.unlink(missing_ok=True)
         self.con = duckdb.connect(str(db_path))
         self.con.execute("SET memory_limit = '3GB'")  # 8 GB machine: larger work spills to <db>.tmp
-        self.canon_path = db_path.parent / "canon.spool.ndjson"
-        self.quarantine_path = db_path.parent / "quarantine.spool.ndjson"
-        self.ingested_at = _ts(ingested_at)
+        self.ingested_at = ingested_at.astimezone(timezone.utc).replace(tzinfo=None)
         for name, columns in (("canon", CANON_COLUMNS), ("quarantine", QUARANTINE_COLUMNS)):
             self.con.execute(f"CREATE TABLE {name} ({', '.join(f'{c} {t}' for c, t in columns.items())})")
 
-    def begin_hour(self, hour):
-        hour = hour.replace(tzinfo=None)
-        self.source_file_hour = _ts(hour)
-        self.available_at = _ts(hour + timedelta(hours=1) + AVAILABILITY_LAG)  # §4 backfill
-        self.canon_file = open(self.canon_path, "w", encoding="utf-8")
-        self.quarantine_file = open(self.quarantine_path, "w", encoding="utf-8")
+    def load_hour(self, hour, spool_dir):
+        """Insert one hour's spool files, then delete them."""
+        hour = hour.astimezone(timezone.utc).replace(tzinfo=None)
+        params = {"source_file_hour": hour, "available_at": hour + timedelta(hours=1) + AVAILABILITY_LAG,
+                  "ingested_at": self.ingested_at, "schema_version": SCHEMA_VERSION}
+        canon_path, quarantine_path = spool_paths(spool_dir, hour)
+        self._insert("canon", canon_path, {c: CANON_COLUMNS[c] for c in SPOOLED}, params,
+                     ["$" + c if c in params else "NULL" if c in HOUR_CONSTANTS else c for c in CANON_COLUMNS])
+        self._insert("quarantine", quarantine_path,
+                     {"source_line": "INTEGER", "reason_code": "VARCHAR", "raw_line": "VARCHAR"},
+                     {"source_file_hour": hour},
+                     ["$source_file_hour", "source_line", "reason_code", "unhex(raw_line)"])
 
-    def add(self, source_line, raw, code, fields):
-        if code == "canonical":
-            row = dict(fields, payload_raw=None,  # §2, G32: not stored in Gate 1 runs
-                       event_time=_ts(fields["event_time"]), source_file_hour=self.source_file_hour,
-                       source_line=source_line, available_at=self.available_at,
-                       source_last_modified=None, ingested_at=self.ingested_at,
-                       record_hash=record_hash(raw), schema_version=SCHEMA_VERSION)
-            self.canon_file.write(json.dumps(row) + "\n")
-        else:
-            row = {"source_file_hour": self.source_file_hour, "source_line": source_line,
-                   "reason_code": code, "raw_line": raw.hex()}
-            self.quarantine_file.write(json.dumps(row) + "\n")
-
-    def end_hour(self):
-        self.canon_file.close()
-        self.quarantine_file.close()
-        for table, path, columns in (("canon", self.canon_path, CANON_COLUMNS),
-                                     ("quarantine", self.quarantine_path, QUARANTINE_COLUMNS)):
-            if path.stat().st_size:
-                json_types = {c: ("VARCHAR" if c == "raw_line" else t.replace(" NOT NULL", ""))
-                              for c, t in columns.items()}
-                select = ", ".join("unhex(raw_line)" if c == "raw_line" else c for c in columns)
-                self.con.execute(
-                    f"INSERT INTO {table} SELECT {select} FROM read_json(?, format='newline_delimited', "
-                    f"columns={json_types!r}, maximum_object_size=268435456)", [str(path)])
-            path.unlink()
+    def _insert(self, table, path, spooled_types, params, select):
+        if path.stat().st_size:
+            json_types = {c: t.replace(" NOT NULL", "") for c, t in spooled_types.items()}
+            self.con.execute(
+                f"INSERT INTO {table} SELECT {', '.join(select)} FROM read_json($path, "
+                f"format='newline_delimited', columns={json_types!r}, maximum_object_size=268435456)",
+                dict(params, path=str(path)))
+        path.unlink()
 
     def close(self):
         self.con.close()
