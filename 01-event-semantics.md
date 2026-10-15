@@ -1,6 +1,6 @@
 # 01 — Canonical Event Semantics and Verification Contract
 
-**Status:** Draft v0.4 · 2026-10-14
+**Status:** Draft v0.5 · 2026-10-14
 **Owner:** Steven (approves all changes)
 **Applies to:** every pipeline component, verifier, and evidence artifact
 
@@ -159,14 +159,16 @@ Reported, never asserted: the missing-hour registry, known outage windows, and t
 
 ## 6. Reference calculation
 
-**Owner and author: Steven, by hand.** This is the dumbest correct implementation, kept independent of the pipeline.
+**Owner: Steven. Author: the reference agent** (the main Claude Code session), which never writes pipeline code. Steven reviews it and owns it. This is the dumbest correct implementation, kept independent of the pipeline. It lives at `reference/reference.py`.
+
+**Independence rule.** The pipeline must be written by a different agent from the reference author. Neither may read the other's code while writing its own; both build only from this document and the fixtures. Otherwise the R1–R7 comparison would be checking an implementation against itself.
 
 Constraints:
 
-- One Python file, or SQL run in DuckDB.
+- One Python file. Python handles per-line parsing and quarantine; DuckDB handles deduplication and aggregation, on disk.
 - No imports from the pipeline codebase.
 - Reads the raw `.json.gz` files directly.
-- Roughly 200 lines or fewer. Clarity over speed.
+- Roughly 250 lines or fewer. Clarity over speed.
 
 Computes, for a given set of hour files:
 
