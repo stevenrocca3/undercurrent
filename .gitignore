@@ -2,3 +2,6 @@
 __pycache__/
 reference_out/
 pipeline_out/
+.agents/
+.claude/
+skills-lock.json

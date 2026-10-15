@@ -1,0 +1,5 @@
+source_file_hour,event_type,event_count
+2026-09-01T00:00:00Z,IssuesEvent,1
+2026-09-01T00:00:00Z,PushEvent,4
+2026-09-01T00:00:00Z,WatchEvent,3
+2026-09-01T01:00:00Z,PushEvent,1
