@@ -36,6 +36,7 @@ A note's own **Status** line records the moment it was written (often "not pushe
 | 2026-10-16-restore-benchmark-rows | restore 4 benchmark rows dropped by a merge | #15 |
 | 2026-10-15-real-month-comparison | real month: pipeline = reference on all of September (54.6M events, 24 cutoffs) | #17 |
 | 2026-10-15-clean-month-rerun | clean month rerun: pipeline = reference on complete September, all 720 hours | #19 |
-| 2026-10-15-gate1-evidence-and-reconciliation | Gate 1 tooling: CI evidence run, BigQuery reconciliation; pipeline digest fix verified on the month | — |
+| 2026-10-15-gate1-evidence-and-reconciliation | Gate 1 tooling: CI evidence run, BigQuery reconciliation; pipeline digest fix verified on the month | #20 |
+| 2026-10-15-gate1-caffeinate | Gate 1 workflow: no idle sleep during the run (first run lost the runner) | — |
 
 Pipeline notes (`2026-10-15-pipeline-*`) live on the `pipeline` branch until it merges.
