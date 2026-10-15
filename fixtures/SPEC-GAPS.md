@@ -115,3 +115,38 @@ These are places where `01-event-semantics.md` v0.2 was silent or ambiguous, so 
 - **Decision:** a line containing invalid UTF-8 anywhere is Q1, so no canonical field can hold it. Folded into §2 in v0.7.
 - **Depends:** F18 line 13.
 
+## G26. Registry evidence when reading local files (§1, §8 criterion 5): DECIDED 2026-10-15 (owner, spec v0.8)
+- **Gap:** §1 says every hour's status comes "with the evidence (HTTP status, byte count, decompression error)". The Gate 1 pipeline reads hour files from a local `INPUT_DIR` (brief interface), so it has no HTTP status. The spec also doesn't say where the evidence goes: `registry.csv` (§6) holds only `source_file_hour,status`.
+- **Decision:** the provisional behaviour, folded into §1 in v0.8. The pipeline writes `registry_evidence.csv` beside `registry.csv`, with columns `source_file_hour,status,file_bytes,lines,error` (`file_bytes` empty when `missing`; `error` is the decompression error text, empty when `present`). It is not compared. No HTTP status column until something downloads the files and records it.
+- **Depends:** none (not compared by any fixture).
+
+## G27. Non-quarantining fields that are missing or the wrong JSON type (§2): DECIDED 2026-10-15 (owner, spec v0.9)
+- **Gap:** §2 marks `repo_name` and `is_public` as non-null, but no quarantine rule covers a missing or non-string `repo.name`, and F22 makes `"public": "yes"` canonical, so `is_public` has no bool to hold. §2 also doesn't say what a non-string `actor.login` or `payload.action` becomes.
+- **Decision:** store null (folded into §2 in v0.9). `is_public` is null when `public` is not a JSON bool, and `repo_name`, `actor_login` and `payload_action` are null when the source is missing or not a string. `repo_name` and `is_public` are nullable columns in the pipeline's canonical table. None of these fields reaches R1–R7: star detection needs `payload.action == "started"` exactly, so null is not a star.
+- **Depends:** F22 line 8 (canonical with `is_public` null). Nothing compared depends on it.
+
+## G28. A JSON string escape that is not valid Unicode, e.g. `"\ud800"` (§2, G25): DECIDED 2026-10-15 (owner, spec v0.9)
+- **Gap:** a lone-surrogate escape is valid JSON grammar in valid UTF-8 bytes, so neither Q1 rule catches it. But the decoded string can't be written as UTF-8, which is the problem G25 meant to rule out. It matters when it lands in a stored string (`id`, `type`, `actor.login`, `repo.name`, `payload.action`); `event_type` reaches r2.csv.
+- **Decision:** `Q1` when any of those stored strings holds a lone surrogate after decoding. `payload_raw` keeps the payload's raw text, where the escape is plain ASCII, so a lone surrogate inside the payload doesn't quarantine the line.
+- **Depends:** no fixture. `pipeline/test_canon.py` covers it.
+
+## G29. `ingested_at` and byte-identical replay vs batch (§2, §4): DECIDED 2026-10-15 (owner, spec v0.9)
+- **Gap:** §2 sets `ingested_at` from the pipeline clock, and §4 requires byte-identical canonical tables from replay and batch on identical input. Two runs never share a clock reading, so a content hash over every column can never match.
+- **Decision:** the replay-vs-batch byte-identity check excludes `ingested_at` and `source_last_modified` (§4 Replay, v0.9). The pipeline sets `ingested_at` once per run.
+- **Depends:** none yet.
+
+## G30. Text of a non-string `type` (§2): DECIDED 2026-10-15 (owner, spec v0.10)
+- **Gap:** "stored as its JSON text" could mean the raw text in the line or a re-serialization; they differ for `[1,2]` vs `[1, 2]`, key spacing, `1.0` vs `1`. It reaches r2.
+- **Decision:** the raw JSON text as it appears in the line, not re-serialized. (Raised by the reference agent; the pipeline already did this.)
+- **Depends:** F22 (`[1]`, where both readings agree).
+
+## G31. Repeated keys in one JSON object (§2): DECIDED 2026-10-15 (owner, spec v0.11)
+- **Gap:** RFC 8259 leaves repeated keys undefined; some parsers keep the first, some the last, some reject.
+- **Decision:** the last occurrence wins at every level, for every check and field, including the raw `type` text. `record_hash` is unaffected. (Raised by the reference agent; the pipeline already did this: `parse_object` at the top level, `json.loads` below it.)
+- **Depends:** none (not exercised by a fixture).
+
+## G32. `payload_raw` for a full month does not fit on the Gate 1 machine (§2, brief scale constraint): DECIDED 2026-10-15 (owner, spec v0.12)
+- **Gap:** §2 requires `payload_raw` (not null) on every canonical record. One real hour (`2026-09-15-15`: 81,136 canonical rows) takes 273 MiB in `canon.duckdb`, or 3,528 bytes per row. 256 MB of that is `payload_raw`, which DuckDB stores uncompressed. For 720 hours that's about 200 GB (58M rows) to 250 GB (70M rows), against about 31 GB of free disk. Even the gzip source alone (61.7 MB for this hour) comes to about 44 GB for the month.
+- **Options:** (a) don't store `payload_raw` in the month run; it is reachable from `(source_file_hour, source_line)` plus the source file, so it would be fetched on demand, and no R1–R7 output reads it; (b) store it compressed (e.g. zstd per row); this still needs measuring, and it probably still doesn't fit; (c) run on a bigger disk.
+- **Decision:** option (a). Gate 1 runs store `payload_raw` as null. The payload stays recoverable via `source_file_hour` + `source_line`, the manifest SHA-256 (§8) and `record_hash` (§2, v0.12).
+- **Depends:** none (no fixture is affected).
