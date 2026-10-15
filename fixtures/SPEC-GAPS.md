@@ -134,3 +134,8 @@ These are places where `01-event-semantics.md` v0.2 was silent or ambiguous, so 
 - **Gap:** §2 sets `ingested_at` from the pipeline clock, and §4 requires byte-identical canonical tables from replay and batch on identical input. Two runs never share a clock reading, so a content hash over every column can never match.
 - **Decision:** the replay-vs-batch byte-identity check excludes `ingested_at` and `source_last_modified` (§4 Replay, v0.9). The pipeline sets `ingested_at` once per run.
 - **Depends:** none yet.
+
+## G30. Text of a non-string `type` (§2): DECIDED 2026-10-15 (owner, spec v0.10)
+- **Gap:** "stored as its JSON text" could mean the raw text in the line or a re-serialization; they differ for `[1,2]` vs `[1, 2]`, key spacing, `1.0` vs `1`. It reaches r2.
+- **Decision:** the raw JSON text as it appears in the line, not re-serialized. (Raised by the reference agent; the pipeline already did this.)
+- **Depends:** F22 (`[1]`, where both readings agree).
