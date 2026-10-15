@@ -15,7 +15,11 @@ Rules:
 - Headers must match exactly.
 - Rows are compared as exact text after sorting both sides (byte order), so
   row order never matters; cell text does ("7" != "07", no trimming).
-- Line endings must be LF. A CR anywhere fails the file.
+- Line endings must be LF. A CR anywhere fails the file. Text must be UTF-8.
+- The header is split off before sorting; only data rows are sorted. A
+  header-only file is valid (zero rows); only a 0-byte file is rejected.
+- Sorting is Python's default str sort (Unicode code point, identical to
+  UTF-8 byte order), locale-independent, applied to both sides in-process.
 - No tolerance, no fuzzy matching. Exit code 0 = all equal, 1 = any difference,
   2 = usage error.
 
@@ -36,7 +40,7 @@ def read_csv_lines(path):
         raise ValueError("contains CR; line endings must be LF")
     text = data.decode("utf-8")
     if text == "":
-        raise ValueError("empty file; a header row is required")
+        raise ValueError("0-byte file; a header row is required (a header-only file is valid: zero rows)")
     if not text.endswith("\n"):
         raise ValueError("last line has no trailing LF")
     lines = text[:-1].split("\n")

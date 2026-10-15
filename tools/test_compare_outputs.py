@@ -92,6 +92,47 @@ class CompareTests(unittest.TestCase):
         p.write_text(p.read_text().replace("8,0,0", "08,0,0"))
         self.assertEqual(self.dirs()[0], 1)
 
+    def test_header_only_files_pass(self):
+        for d in (self.exp_copy(), self.act):
+            (d / "r4.csv").write_text("repo_id,event_date,star_events\n")
+        code, out = run(["x", "dirs", str(self.exp2), str(self.act)])
+        self.assertEqual(code, 0, out)
+
+    def test_header_only_vs_rows_fails(self):
+        (self.act / "r4.csv").write_text("repo_id,event_date,star_events\n")
+        self.assertEqual(self.dirs()[0], 1)
+
+    def test_zero_byte_file_fails(self):
+        (self.act / "r4.csv").write_bytes(b"")
+        code, out = self.dirs()
+        self.assertEqual(code, 1)
+        self.assertIn("0-byte", out)
+
+    def test_header_never_sorted_into_rows(self):
+        # A header-like line that would sort before data must stay the header;
+        # moving the header into the body (and a data row up) must fail.
+        p = self.act / "r5.csv"
+        header, *rows = p.read_text().splitlines()
+        p.write_text("\n".join([rows[0], header] + rows[1:]) + "\n")
+        code, out = self.dirs()
+        self.assertEqual(code, 1)
+        self.assertIn("header differs", out)
+
+    def test_sort_is_code_point_order(self):
+        rows = ["\u00e9", "z", "Z", "a", "10", "9"]
+        self.assertEqual(sorted(rows), sorted(rows, key=lambda r: r.encode("utf-8")))
+
+    def test_invalid_utf8_fails_cleanly(self):
+        (self.act / "r4.csv").write_bytes(b"repo_id,event_date,star_events\n\xff\n")
+        code, out = self.dirs()
+        self.assertEqual(code, 1)
+        self.assertIn("actual file invalid", out)
+
+    def exp_copy(self):
+        self.exp2 = self.tmp / "exp"
+        shutil.copytree(self.exp, self.exp2)
+        return self.exp2
+
     def test_extra_file_noted_not_failed(self):
         (self.act / "debug.csv").write_text("a\n")
         code, out = self.dirs()
