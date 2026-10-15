@@ -72,5 +72,6 @@ Add your fixture run and comparison as extra steps in `check.sh`. Keep the exist
 
 ## Standing rules (Steven)
 
+- **Record every measurement in `BENCHMARKS.md`** (timings, memory, sizes, row counts, fixture results, bugs found), one row each, following the rules at the top of that file. Mark estimates as estimates. These numbers back resume claims, so they must be exact and reproducible.
 - Every change gets its own note in `changes/`.
 - No over-coding: build the simplest thing that meets the spec. Tidy files you touch without changing behaviour. Flag larger messes in a separate refactor write-up instead of fixing them on the side.

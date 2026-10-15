@@ -28,6 +28,7 @@ A note's own **Status** line records the moment it was written (often "not pushe
 | 2026-10-15-ci-check-workflow | CI runs `check.sh` | #7 |
 | 2026-10-15-spec-v0.10-g30 | spec v0.10: G30; G31 raised | #8 |
 | 2026-10-15-refactor-and-cleanup | reference tidy, this index, cleanups | #8 |
-| 2026-10-15-spec-v0.11-g31-and-line-limit | spec v0.11: G31 repeated keys; §6 limit 350 | — |
+| 2026-10-15-spec-v0.11-g31-and-line-limit | spec v0.11: G31 repeated keys; §6 limit 350 | #9 |
+| 2026-10-15-benchmarks-md | `BENCHMARKS.md` and the rule for all agents | — |
 
 Pipeline notes (`2026-10-15-pipeline-*`) live on the `pipeline` branch until it merges.

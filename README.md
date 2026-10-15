@@ -1,6 +1,6 @@
 # undercurrent
 
-Spec: `01-event-semantics.md`. Change notes: `changes/`.
+Spec: `01-event-semantics.md`. Change notes: `changes/`. Measured results: `BENCHMARKS.md`.
 
 ## Checks
 
