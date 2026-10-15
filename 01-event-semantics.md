@@ -1,6 +1,6 @@
 # 01 — Canonical Event Semantics and Verification Contract
 
-**Status:** Draft v0.5 · 2026-10-14
+**Status:** Draft v0.6 · 2026-10-14
 **Owner:** Steven (approves all changes)
 **Applies to:** every pipeline component, verifier, and evidence artifact
 
@@ -30,8 +30,8 @@
 | Status | Test |
 |---|---|
 | `missing` | no file for the hour |
-| `unreadable` | not a gzip stream, or decompression fails before yielding any line; the hour contributes no lines |
-| `truncated` | the gzip stream ends early (EOF or CRC error) after yielding ≥ 1 line; complete lines are kept, and the partial last line is quarantined as `Q1` |
+| `unreadable` | not a gzip stream, or decompression fails before yielding any *complete* line; the hour contributes no lines (partial bytes are discarded, not counted as `Q1`) |
+| `truncated` | the gzip stream ends early (EOF or CRC error) after yielding ≥ 1 complete line; complete lines are kept, and the partial last line is quarantined as `Q1`. Non-gzip bytes after a complete gzip member also make the hour `truncated`. |
 | `present` | fully decoded. A bad line inside a fully decoded file does not change its status. |
 
 Readers must recover the bytes after the last `\n` of a truncated stream as a final line. Iterating over `gzip.open()` in Python raises `EOFError` without returning those bytes; decompress with `zlib.decompressobj(wbits=31)` instead. F16 covers this.
@@ -74,10 +74,12 @@ Files outside the requested hour range are ignored.
 
 - `Q1`: the line is not valid JSON, or is valid JSON but not an object (e.g. `[1,2]`, `42`, an empty line). The partial last line of a `truncated` file is also `Q1`.
 - `Q2`: missing `id`, `type`, `repo.id`, `actor.id`, `created_at`, `public`, or `payload`. A JSON `null` in any of these counts as missing.
-- `Q3`: `created_at` is not RFC 3339 with `Z` or a numeric offset. Accepted values are converted to UTC.
+- `Q3`: `created_at` is not a string of the form `YYYY-MM-DDTHH:MM:SS[.f{1,6}](Z|±HH:MM)` that is also a valid instant. That means uppercase `T` and `Z`, at most 6 fractional digits, and no leap second `:60`. Accepted values are converted to UTC.
 - `Q4`: an ID field has the wrong JSON type. `id` must be a string; a numeric `id` is never cast. `actor.id` and `repo.id` must be integers, not float, string or bool.
 
 `org.id` never triggers quarantine. If it has the wrong type, `org_id` is stored as null.
+
+`type`, `public` and `payload` are checked for presence only, not JSON type. A non-string `type` is stored as its JSON text and flagged `unrecognized_type`.
 
 Quarantine schema: `source_file_hour, source_line, reason_code, raw_line`. Quarantined lines are counted, never silently dropped.
 
@@ -243,7 +245,7 @@ Negative fixtures for the detector (steady activity that must not trigger) are d
 Gate 1 passes only if **all** of the following hold:
 
 1. Every fixture passes in both the pipeline and the reference calculation.
-2. Pipeline and reference outputs are exactly equal on R1–R7 for the chosen month.
+2. Pipeline and reference outputs are exactly equal on R1–R7 for the chosen month. R5 uses 24 daily cutoffs, `2026-09-08T00:00:00Z` through `2026-10-01T00:00:00Z`, so every 7-day window lies inside September.
 3. Replay and batch produce byte-identical canonical tables.
 4. A source reconciliation report exists with every out-of-tolerance cell categorized and zero `unexplained` cells.
 5. A missing-hour registry exists for the full month.
@@ -260,6 +262,7 @@ Gate 1 fails if any check above fails, or if any evidence artifact was produced 
 | OPEN-1 | Gate 1 month | September 2026 (UTC) | 2026-10-14, v0.2 |
 | OPEN-2 | Historical availability lag `L` | 6h, recalibrated to measured live p99 | 2026-10-14, v0.2 |
 | OPEN-3 | Source-reconciliation tolerance | ≤ 0.1% relative difference per cell, all §5.2 metrics | 2026-10-14, v0.2 |
+| — | Gate 1 R5 cutoffs | daily 00:00Z, 2026-09-08 → 2026-10-01 (24 cutoffs) | 2026-10-14, v0.6 |
 
 No open decisions remain in this document.
 
