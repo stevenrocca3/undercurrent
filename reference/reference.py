@@ -38,6 +38,7 @@ EVENT_TYPES = set(
 )
 CHUNK = 1 << 20
 TS_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 # ---------- time helpers ----------
@@ -47,11 +48,11 @@ def parse_hour(s):
 
 
 def to_us(dt):
-    return (dt - datetime(1970, 1, 1, tzinfo=timezone.utc)) // timedelta(microseconds=1)
+    return (dt - EPOCH) // timedelta(microseconds=1)
 
 
 def fmt_ts(us):
-    return (datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=us)).strftime(TS_FORMAT)
+    return (EPOCH + timedelta(microseconds=us)).strftime(TS_FORMAT)
 
 
 def hour_file_name(dt):
@@ -188,8 +189,6 @@ def classify(raw, is_partial):
         return "Q3", None
     if not isinstance(obj["id"], str) or not is_int64(obj["repo"]["id"]) or not is_int64(obj["actor"]["id"]):
         return "Q4", None
-    payload = obj["payload"]
-    action = payload.get("action") if isinstance(payload, dict) else None
     etype = obj["type"]
     return None, {
         "record_hash": hashlib.sha256(raw[:-1] if raw.endswith(b"\r") else raw).hexdigest(),  # §2: no \r\n
@@ -199,7 +198,7 @@ def classify(raw, is_partial):
         "repo_id": obj["repo"]["id"],
         "event_us": to_us(event_dt),
         "event_date": event_dt.strftime("%Y-%m-%d"),
-        "is_star": etype == "WatchEvent" and action == "started",
+        "is_star": etype == "WatchEvent" and get(obj, "payload", "action") == "started",
     }
 
 
