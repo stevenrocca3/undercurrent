@@ -134,6 +134,25 @@ def utf8_ok(s):
         return False
 
 
+WS = json.decoder.WHITESPACE.match
+DECODER = json.JSONDecoder()
+
+
+def raw_value(text, key):
+    """The raw text of top-level `key` in JSON object `text`, exactly as written (G30).
+    If the key repeats, the last one wins, as in json.loads."""
+    found, i = None, WS(text, 0).end() + 1  # past "{"
+    while text[WS(text, i).end()] != "}":
+        name, i = json.decoder.scanstring(text, WS(text, i).end() + 1)
+        i = WS(text, WS(text, i).end() + 1).end()  # past ":"
+        end = DECODER.raw_decode(text, i)[1]
+        if name == key:
+            found = text[i:end]
+        i = WS(text, end).end()
+        i += text[i] == ","
+    return found
+
+
 def get(obj, *keys):
     for k in keys:
         if not isinstance(obj, dict) or obj.get(k) is None:
@@ -147,7 +166,8 @@ def classify(raw, is_partial):
     if is_partial:
         return "Q1", None
     try:
-        obj = json.loads(raw.decode("utf-8"))
+        text = raw.decode("utf-8")
+        obj = json.loads(text)
     except (UnicodeDecodeError, ValueError):
         return "Q1", None
     if not isinstance(obj, dict):
@@ -174,7 +194,7 @@ def classify(raw, is_partial):
     return None, {
         "record_hash": hashlib.sha256(raw[:-1] if raw.endswith(b"\r") else raw).hexdigest(),  # §2: no \r\n
         "event_id": obj["id"],
-        "event_type": etype if isinstance(etype, str) else json.dumps(etype),
+        "event_type": etype if isinstance(etype, str) else raw_value(text, "type"),
         "recognized": isinstance(etype, str) and etype in EVENT_TYPES,
         "repo_id": obj["repo"]["id"],
         "event_us": to_us(event_dt),
