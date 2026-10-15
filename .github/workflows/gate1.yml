@@ -1,0 +1,28 @@
+# Gate 1 evidence run (01-event-semantics.md §8). Started by hand; runs on a
+# self-hosted runner because a month of input (19 GB gzip) plus working space
+# does not fit on a GitHub-hosted runner. The runner needs Python 3.13 and an
+# authenticated `bq` (Google Cloud SDK) for the source reconciliation.
+name: gate1
+
+on:
+  workflow_dispatch:
+
+jobs:
+  gate1:
+    runs-on: self-hosted
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3.13 -m venv .venv && .venv/bin/pip install -q -r requirements.txt
+      - run: tools/gate1.sh "$HOME/undercurrent-data/gharchive" "$RUNNER_TEMP/gate1"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate1-evidence
+          path: |
+            evidence/gate1.json
+            ${{ runner.temp }}/gate1/checks.tsv
+            ${{ runner.temp }}/gate1/*.log
+            ${{ runner.temp }}/gate1/reconcile/
+            ${{ runner.temp }}/gate1/bigquery/
+          if-no-files-found: warn
