@@ -84,3 +84,10 @@ Run outputs: `~/undercurrent-data/runs/2026-09-month-pipe-f5bf11d/` (including `
 ## Follow-up: Google Cloud CLI install
 
 `brew install --cask google-cloud-sdk` failed on this Mac. macOS 14 is Homebrew Tier 3, so it tried to compile `python@3.13` from source, and that failed on a missing `CarbonCore/Folders.h` in the Command Line Tools SDK. Instead the CLI was installed from Google's official archive (`google-cloud-cli-darwin-arm.tar.gz`) into `~/google-cloud-sdk`, with its bundled Python: gcloud 589.0.0, bq 2.1.40. A runner doesn't read `~/.zshrc`, so `gate1.yml` now adds `~/google-cloud-sdk/bin` to the job's PATH.
+
+## Follow-up: BigQuery dry runs and a bq fix
+
+- **Project.** BigQuery sandbox project `genial-upgrade-511700-s1`. Billing is disabled, so it cannot be charged, and the free query allowance is 1 TB a month.
+- **Dry runs.** The dry runs are free. type_by_hour scans 1,143,645,956 B, ids_by_hour 1,147,906,704 B and stars 72,920,720,046 B, about 75 GB in total, or 7.5% of the monthly allowance.
+- **Fix.** `gate1.sh` had passed each query to `bq` as an argument, where the SQL's leading `--` comment is read as a flag (`FATAL Flags parsing error`). It now feeds the query on stdin.
+- **PATH.** `bq` also needs `gcloud` on PATH to authenticate. `gate1.yml` already adds it.

@@ -34,8 +34,9 @@ check() {  # check NAME COMMAND...: run, log to WORK_DIR/NAME.log, record exit c
   printf '%s\t%s\n' "$name" "$?" >> "$W/checks.tsv"
 }
 bq_export() {  # run each tools/bigquery/*.sql into WORK_DIR/bigquery/*.csv
+  # On stdin: as an argument, the SQL's leading "--" comment parses as a bq flag.
   for q in type_by_hour ids_by_hour stars; do
-    bq query --nouse_legacy_sql --format=csv --max_rows=1000000 "$(cat "tools/bigquery/$q.sql")" > "$W/bigquery/$q.csv" || return 1
+    bq query --nouse_legacy_sql --format=csv --max_rows=1000000 < "tools/bigquery/$q.sql" > "$W/bigquery/$q.csv" || return 1
   done
 }
 
