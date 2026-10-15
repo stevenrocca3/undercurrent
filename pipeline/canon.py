@@ -122,7 +122,7 @@ def classify(raw, partial):
     def get(key):
         return members[key][0] if key in members else None
 
-    event_id, event_type, created_at = get("id"), get("type"), get("created_at")
+    event_id, event_type, created_at, public = get("id"), get("type"), get("created_at"), get("public")
     actor, repo, org, payload = get("actor"), get("repo"), get("org"), get("payload")
     actor_id, repo_id = _sub(actor, "id"), _sub(repo, "id")
     fields = {
@@ -133,15 +133,14 @@ def classify(raw, partial):
         "repo_id": repo_id,
         "repo_name": _str_or_none(_sub(repo, "name")),
         "org_id": _sub(org, "id") if is_int64(_sub(org, "id")) else None,
-        "is_public": get("public") if isinstance(get("public"), bool) else None,
+        "is_public": public if isinstance(public, bool) else None,
         "payload_action": _str_or_none(_sub(payload, "action")),
-        "payload_raw": None,  # §2, G32: not stored in Gate 1 runs
     }
     text_fields = (event_id, event_type, fields["actor_login"], fields["repo_name"], fields["payload_action"])
     if not all(_utf8_ok(v) for v in text_fields if isinstance(v, str)):
         return "Q1", None  # §2 Q1, G28: lone surrogate in a field stored as text; payload is not checked
 
-    if any(v is None for v in (event_id, event_type, repo_id, actor_id, created_at, get("public"), payload)):
+    if any(v is None for v in (event_id, event_type, repo_id, actor_id, created_at, public, payload)):
         return "Q2", None
     fields["event_time"] = parse_created_at(created_at)
     if fields["event_time"] is None:
@@ -199,28 +198,29 @@ class CanonStore:
         db_path.unlink(missing_ok=True)
         self.con = duckdb.connect(str(db_path))
         self.con.execute("SET memory_limit = '3GB'")  # 8 GB machine: larger work spills to <db>.tmp
-        self.spool_dir = db_path.parent
+        self.canon_path = db_path.parent / "canon.spool.ndjson"
+        self.quarantine_path = db_path.parent / "quarantine.spool.ndjson"
         self.ingested_at = _ts(ingested_at)
         for name, columns in (("canon", CANON_COLUMNS), ("quarantine", QUARANTINE_COLUMNS)):
             self.con.execute(f"CREATE TABLE {name} ({', '.join(f'{c} {t}' for c, t in columns.items())})")
 
     def begin_hour(self, hour):
-        self.hour = hour
-        self.canon_path = self.spool_dir / "canon.spool.ndjson"
-        self.quarantine_path = self.spool_dir / "quarantine.spool.ndjson"
+        hour = hour.replace(tzinfo=None)
+        self.source_file_hour = _ts(hour)
+        self.available_at = _ts(hour + timedelta(hours=1) + AVAILABILITY_LAG)  # §4 backfill
         self.canon_file = open(self.canon_path, "w", encoding="utf-8")
         self.quarantine_file = open(self.quarantine_path, "w", encoding="utf-8")
 
     def add(self, source_line, raw, code, fields):
-        hour = self.hour.replace(tzinfo=None)
         if code == "canonical":
-            row = dict(fields, event_time=_ts(fields["event_time"]), source_file_hour=_ts(hour),
-                       source_line=source_line, available_at=_ts(hour + timedelta(hours=1) + AVAILABILITY_LAG),
+            row = dict(fields, payload_raw=None,  # §2, G32: not stored in Gate 1 runs
+                       event_time=_ts(fields["event_time"]), source_file_hour=self.source_file_hour,
+                       source_line=source_line, available_at=self.available_at,
                        source_last_modified=None, ingested_at=self.ingested_at,
                        record_hash=record_hash(raw), schema_version=SCHEMA_VERSION)
             self.canon_file.write(json.dumps(row) + "\n")
         else:
-            row = {"source_file_hour": _ts(hour), "source_line": source_line,
+            row = {"source_file_hour": self.source_file_hour, "source_line": source_line,
                    "reason_code": code, "raw_line": raw.hex()}
             self.quarantine_file.write(json.dumps(row) + "\n")
 
