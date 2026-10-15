@@ -1,0 +1,1 @@
+{"id": "F12", "title": "point-in-time trap: event_time < t but available_at > t", "requested_hours": ["2026-09-01T00:00:00Z", "2026-09-01T02:00:00Z"], "cutoffs": ["2026-09-01T08:00:00Z", "2026-09-01T09:00:00Z", "2026-09-08T00:20:00Z"]}
