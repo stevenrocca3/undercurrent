@@ -28,6 +28,7 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-16 | **Pipeline and reference agree exactly on a full real day** (2026-09-15, 24 hours, 1,789,869 lines): all 7 files R1–R7 equal, no differences. 1,789,839 canonical, 30 Q2, 0 duplicates, 0 flags; r2 384 rows, r4 28,862 rows, r5 28,528 rows (2 cutoffs) | `compare_outputs.py dirs` (commands in note) | `changes/2026-10-16-first-real-day-comparison.md`; reference `main` `8f60d65`, pipeline `2bea3ea` | reference |
 | 2026-10-16 | **Pipeline and reference agree exactly on a full real week** (2026-09-15 → 09-21, 168 hours, 14,964,756 lines): all 7 files R1–R7 equal. 14,964,610 canonical, 146 Q2; **9 real duplicates** (0 conflicts) deduplicated identically; r2 2,638 rows, r4 92,098 rows, r5 383,396 rows (7 daily cutoffs) | `compare_outputs.py dirs` | `changes/2026-10-16-real-week-comparison.md`; reference `04fd948`, pipeline `56878e6` | reference |
 | 2026-10-16 | After the pipeline's 3.6× speed-up (new JSON decoder), pipeline still matches 27/27 fixtures and matches the reference on hand-made G28 (lone surrogates), G30 (raw `type` text) and G31 (repeated keys) probes | comparator, fixtures and dirs mode | same note | reference |
+| 2026-10-16 | **Replay and batch byte-identical** (§8 criterion 3) on 27/27 fixtures and the real day 2026-09-15 (24 hours; canon 1,789,839 rows, quarantine 30, duplicates 0): same `canon_digest.csv` (SHA-256 per table after a fixed sort, excluding `ingested_at`, `source_last_modified`) and identical R1–R7; 41 tests pass | `pipeline/test_replay.py`; `run … --replay` vs batch, `cmp` + `compare_outputs.py dirs` | `changes/2026-10-16-pipeline-replay-vs-batch.md`, `pipeline` `ef6a5e0` | pipeline |
 
 ## Spec rigour
 
@@ -50,6 +51,8 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-16 | pipeline | same day | 508.94 s | 322 MB | `canon.duckdb` 175,648,768 B = 98.1 B/row | same | reference (ran it) |
 | 2026-10-16 | reference | real week 2026-09-15 → 09-21, 168 hours, 14,964,756 lines, 4.0 GB gzip | 576.22 s | 2,387 MB | — | `changes/2026-10-16-real-week-comparison.md` | reference |
 | 2026-10-16 | pipeline (`56878e6`, after speed-up) | same week | 223.93 s | 1,124 MB | `canon.duckdb` 1,327,247,360 B = 88.7 B/row | same | reference (ran it) |
+| 2026-10-16 | pipeline batch (`ef6a5e0`, now also writes `canon_digest.csv`) | real day 2026-09-15 | 44.99 s | 703 MB (max RSS, one process) | — | `changes/2026-10-16-pipeline-replay-vs-batch.md`, `pipeline` `ef6a5e0` | pipeline |
+| 2026-10-16 | pipeline replay (`ef6a5e0`, one hour at a time, serial, per-hour dedup) | same day | 88.17 s | 1,217 MB (max RSS) | — | `changes/2026-10-16-pipeline-replay-vs-batch.md`, `pipeline` `ef6a5e0` | pipeline |
 
 ## Estimates (not measurements)
 
