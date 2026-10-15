@@ -3,6 +3,7 @@
     .venv/bin/python -m unittest pipeline/test_replay.py
 """
 
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -41,6 +42,20 @@ class TestReplayVsBatch(unittest.TestCase):
         self.assertEqual(table_digests(con), before)  # G29: operational fields excluded
         con.execute("UPDATE canon SET event_id = 'c' WHERE source_line = 2")
         self.assertNotEqual(table_digests(con)[0], before[0])
+
+    def test_digest_is_whole_table_sort_across_hours(self):
+        # table_digests sorts one hour at a time; the bytes must equal one sort of the whole table.
+        con = duckdb.connect()
+        con.execute("CREATE TABLE canon (source_file_hour TIMESTAMP, source_line INT, event_id VARCHAR,"
+                    " ingested_at TIMESTAMP, source_last_modified TIMESTAMP)")
+        con.execute("CREATE TABLE quarantine (source_file_hour TIMESTAMP, source_line INT)")
+        con.execute("CREATE TABLE duplicates (source_file_hour TIMESTAMP, source_line INT)")
+        con.execute("INSERT INTO canon VALUES ('2026-09-01 01:00', 1, 'c', NULL, NULL), ('2026-09-01 00:00', 10, 'b', NULL, NULL),"
+                    " ('2026-09-01 00:00', 2, 'a', NULL, NULL), ('2026-09-01 02:00', 1, 'd', NULL, NULL)")
+        text = "".join(row + "\n" for (row,) in con.execute(
+            "SELECT to_json(t)::VARCHAR FROM (SELECT * EXCLUDE (ingested_at, source_last_modified) FROM canon) t"
+            " ORDER BY source_file_hour, source_line").fetchall())
+        self.assertEqual(table_digests(con)[0], ("canon", 4, hashlib.sha256(text.encode()).hexdigest()))
 
 
 if __name__ == "__main__":

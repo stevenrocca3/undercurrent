@@ -267,14 +267,20 @@ DIGESTED_TABLES = {
 
 
 def table_digests(con):
-    """[(table, rows, sha256)]: each row as JSON text plus LF, in (source_file_hour, source_line) order."""
+    """[(table, rows, sha256)]: each row as JSON text plus LF, in (source_file_hour, source_line) order.
+
+    Sorted one source_file_hour at a time (NOT NULL in every digested table): one sort of the whole
+    table spills past memory_limit and took 443 s of a 1,269 s month run; per hour, the bytes are the same.
+    """
     out = []
     for table, select in DIGESTED_TABLES.items():
         digest, rows = hashlib.sha256(), 0
-        result = con.execute(f"SELECT to_json(t)::VARCHAR FROM ({select}) t ORDER BY source_file_hour, source_line")
-        while batch := result.fetchmany(100_000):
-            rows += len(batch)
-            for (text,) in batch:
-                digest.update(text.encode("utf-8") + b"\n")
+        hours = con.execute(f"SELECT DISTINCT source_file_hour FROM ({select}) t ORDER BY 1").fetchall()
+        for (hour,) in hours:
+            result = con.execute(f"SELECT to_json(t)::VARCHAR FROM ({select}) t WHERE source_file_hour = $hour"
+                                 " ORDER BY source_line", {"hour": hour})
+            while batch := result.fetchmany(100_000):
+                rows += len(batch)
+                digest.update("".join(text + "\n" for (text,) in batch).encode("utf-8"))
         out.append((table, rows, digest.hexdigest()))
     return out
