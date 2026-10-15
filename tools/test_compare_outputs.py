@@ -155,6 +155,11 @@ class CompareTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("0/17 fixtures equal", out)
 
+    def test_multiset_minus_ignores_order_and_counts_duplicates(self):
+        self.assertEqual(co.multiset_minus(["b", "a", "a", "c"], ["a", "c", "b"]), ["a"])
+        self.assertEqual(co.multiset_minus(["x"], []), ["x"])
+        self.assertEqual(co.multiset_minus([], ["x"]), [])
+
     def test_usage_error(self):
         self.assertEqual(run(["x", "bogus", "a", "b"])[0], 2)
 

@@ -27,6 +27,7 @@ Standard library only. Must not import anything from the pipeline codebase.
 """
 
 import sys
+from collections import Counter
 from pathlib import Path
 
 OUTPUT_FILES = ["r1.csv", "r2.csv", "r3.csv", "r4.csv", "r5.csv", "registry.csv", "flags.csv"]
@@ -80,13 +81,12 @@ def compare_file(expected_path, actual_path):
 
 
 def multiset_minus(a, b):
-    """Rows of sorted list a not matched by a row of sorted list b (duplicates counted)."""
-    out, j = [], 0
+    """Rows of list a not matched by a row of list b (duplicates counted)."""
+    counts_b = Counter(b)
+    out = []
     for row in a:
-        while j < len(b) and b[j] < row:
-            j += 1
-        if j < len(b) and b[j] == row:
-            j += 1
+        if counts_b[row] > 0:
+            counts_b[row] -= 1
         else:
             out.append(row)
     return out
