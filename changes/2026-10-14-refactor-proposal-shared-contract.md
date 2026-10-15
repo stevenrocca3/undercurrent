@@ -25,7 +25,7 @@ The pipeline will be a fifth copy. Drift is caught at run time (a header mismatc
 The reference reads `fixtures/event_types.txt` by relative path, and the pipeline will too. The list belongs to the spec (§2), not to the test data.
 **Proposal:** move it to `spec/event_types.txt` (or the repo root) and update §2, the reference and the fixtures README. Low risk; a fixtures re-run proves it.
 
-## 3. Two Python environments
+## 3. Two Python environments — **DONE** (`2026-10-14-check-script.md`)
 
 `tools/` runs on system `python3` (stdlib only); `reference/` needs `.venv` (DuckDB). That's easy to get wrong, and it's already in the commands in the PR description.
 **Proposal:** run everything through `.venv/bin/python`, and add one `check.sh` (or a `Makefile` target) that runs: comparator tests → reference on fixtures → `compare_outputs.py fixtures`. That's also what CI should run (§8 requires CI-generated evidence).
