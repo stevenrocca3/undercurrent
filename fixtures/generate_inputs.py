@@ -87,9 +87,8 @@ F23_LINE_H6 = r'{"id":"23601","type":"PushEvent","actor":{"id":201,"login":"alic
 # --------------------------------------------------------------------------
 # F24 lines (line endings)
 # --------------------------------------------------------------------------
-F24_LINE_7 = r'{"id":"24001","type":"PushEvent","actor":{"id":201,"login":"alice"},"repo":{"id":501,"name":"acme/rocket"},"payload":{},"public":true,"created_at":"2026-09-01T00:50:00Z"}'
-F24_LINE_8 = r'{"id":"24001","type":"PushEvent","actor":{"id":201,"login":"alice"},"repo":{"id":501,"name":"acme/rocket"},"payload":{},"public":true,"created_at":"2026-09-01T00:50:00Z"}'
-F24_LINE_9 = r'{"id":"24002","type":"PushEvent","actor":{"id":201,"login":"alice"},"repo":{"id":501,"name":"acme/rocket"},"payload":{},"public":true,"created_at":"2026-09-01T00:55:00Z"}'
+F24_DUP = r'{"id":"24001","type":"PushEvent","actor":{"id":201,"login":"alice"},"repo":{"id":501,"name":"acme/rocket"},"payload":{},"public":true,"created_at":"2026-09-01T00:50:00Z"}'
+F24_LAST = r'{"id":"24002","type":"PushEvent","actor":{"id":201,"login":"alice"},"repo":{"id":501,"name":"acme/rocket"},"payload":{},"public":true,"created_at":"2026-09-01T00:55:00Z"}'
 
 # --------------------------------------------------------------------------
 # F25 lines (hours outside requested range)
@@ -261,7 +260,7 @@ FIXTURES = {
     },
 
     # F16: gzip stream of the full F01 baseline, cut off mid-stream.
-    # See write_truncated_gz: the cut is placed exactly at a Z_SYNC_FLUSH point
+    # See truncated_gz: the cut is placed exactly at a Z_SYNC_FLUSH point
     # after B1..B4 + "\n" each and the first part of B5 (B5_HEAD, no newline).
     "F16-truncated-hour": {
         "2026-09-01-0.json.gz": ("truncated",),
@@ -342,9 +341,9 @@ FIXTURES = {
             "raw_chunks",
             [b.encode("utf-8") + b"\n" for b in BASE]
             + [
-                F24_LINE_7.encode("utf-8") + b"\r\n",
-                F24_LINE_8.encode("utf-8") + b"\n",
-                F24_LINE_9.encode("utf-8"),  # no trailing newline
+                F24_DUP.encode("utf-8") + b"\r\n",  # same bytes as next line, CRLF
+                F24_DUP.encode("utf-8") + b"\n",
+                F24_LAST.encode("utf-8"),  # no trailing newline
             ],
         ),
     },
@@ -372,7 +371,7 @@ B5_TAIL = r'gin":"bob"},"repo":{"id":502,"name":"acme/zephyr"},"payload":{"actio
 assert B5_HEAD + B5_TAIL == B5
 
 
-def write_truncated_gz(path):
+def truncated_gz():
     """Gzip the full baseline B1..B6, but keep only the compressed bytes up to a
     sync-flush point placed right after B1..B4 (each + "\\n") and B5_HEAD.
     Any decoder then recovers exactly those bytes and then hits end-of-input
@@ -385,90 +384,48 @@ def write_truncated_gz(path):
         gz.flush(zlib.Z_SYNC_FLUSH)
         cut = buf.tell()  # the fixed offset: end of the sync-flushed block
         gz.write(lost.encode("utf-8"))
-    with open(path, "wb") as f:
-        f.write(buf.getvalue()[:cut])
-    return cut
+    return buf.getvalue()[:cut]
 
 
-def write_cut_inside_first_line_gz(path):
-    """Gzip B1, but cut compressed output at 25 bytes so that decompression fails
-    before yielding any complete line: unreadable stream."""
+def gz(data):
+    """One gzip member of `data`: mtime 0, no filename."""
     buf = io.BytesIO()
-    with gzip.GzipFile(filename="", mode="wb", fileobj=buf, mtime=0) as gz:
-        gz.write(B1.encode("utf-8") + b"\n")
-    with open(path, "wb") as f:
-        f.write(buf.getvalue()[:25])
+    with gzip.GzipFile(filename="", mode="wb", fileobj=buf, mtime=0) as f:
+        f.write(data)
+    return buf.getvalue()
 
 
-def write_gz_with_trailing(path, lines, trailing_bytes):
-    """Write complete gzip member followed by non-gzip bytes."""
-    buf = io.BytesIO()
-    data = "".join(line + "\n" for line in lines).encode("utf-8")
-    with gzip.GzipFile(filename="", mode="wb", fileobj=buf, mtime=0) as gz:
-        gz.write(data)
-    with open(path, "wb") as f:
-        f.write(buf.getvalue() + trailing_bytes)
+def encode_lines(lines):
+    """Each line + "\\n". A bytes line (F18's invalid UTF-8) is written as-is."""
+    return b"".join((l if isinstance(l, bytes) else l.encode("utf-8")) + b"\n" for l in lines)
 
 
-def write_empty_gz(path):
-    """Write valid gzip file of empty content."""
-    buf = io.BytesIO()
-    with gzip.GzipFile(filename="", mode="wb", fileobj=buf, mtime=0) as gz:
-        pass
-    with open(path, "wb") as f:
-        f.write(buf.getvalue())
-
-
-def write_multi_member_gz(path, members_lines):
-    """Write two or more concatenated valid gzip members."""
-    out = io.BytesIO()
-    for lines in members_lines:
-        buf = io.BytesIO()
-        data = "".join(line + "\n" for line in lines).encode("utf-8")
-        with gzip.GzipFile(filename="", mode="wb", fileobj=buf, mtime=0) as gz:
-            gz.write(data)
-        out.write(buf.getvalue())
-    with open(path, "wb") as f:
-        f.write(out.getvalue())
-
-
-def write_corrupt_crc_gz(path, lines):
-    """Write a valid gzip member then flip bits in the 4-byte CRC trailer."""
-    buf = io.BytesIO()
-    data = "".join(line + "\n" for line in lines).encode("utf-8")
-    with gzip.GzipFile(filename="", mode="wb", fileobj=buf, mtime=0) as gz:
-        gz.write(data)
-    raw = bytearray(buf.getvalue())
-    # CRC32 is at offset -8 to -4
-    raw[-8] ^= 0xFF
-    raw[-7] ^= 0xFF
-    with open(path, "wb") as f:
-        f.write(raw)
-
-
-def write_raw_chunks_gz(path, chunks):
-    """Write raw byte chunks directly into a valid gzip member."""
-    buf = io.BytesIO()
-    with gzip.GzipFile(filename="", mode="wb", fileobj=buf, mtime=0) as gz:
-        for c in chunks:
-            gz.write(c)
-    with open(path, "wb") as f:
-        f.write(buf.getvalue())
-
-
-def write_gz(path, lines):
-    parts = []
-    for line in lines:
-        if isinstance(line, bytes):
-            parts.append(line if line.endswith(b"\n") else line + b"\n")
-        else:
-            parts.append(line.encode("utf-8") + b"\n")
-    data = b"".join(parts)
-    buf = io.BytesIO()
-    with gzip.GzipFile(filename="", mode="wb", fileobj=buf, mtime=0) as gz:
-        gz.write(data)
-    with open(path, "wb") as f:
-        f.write(buf.getvalue())
+def build(spec):
+    """File bytes for one FIXTURES entry, plus a short description for the log."""
+    if not isinstance(spec, tuple):
+        return gz(encode_lines(spec)), f"{len(spec)} lines"
+    kind, *args = spec
+    if kind == "raw":
+        return args[0], f"raw non-gzip bytes, {len(args[0])} bytes"
+    if kind == "truncated":
+        data = truncated_gz()
+        return data, f"truncated gzip, {len(data)} bytes"
+    if kind == "cut_inside_first_line":  # no complete line survives: unreadable
+        return gz(encode_lines([B1]))[:25], "cut inside first line, 25 bytes"
+    if kind == "trailing_bytes":
+        return gz(encode_lines(args[0])) + args[1], "gzip with trailing non-gzip bytes"
+    if kind == "empty_gzip":
+        return gz(b""), "valid empty gzip"
+    if kind == "multi_member":
+        return b"".join(gz(encode_lines(m)) for m in args[0]), "multi-member gzip"
+    if kind == "corrupt_crc":
+        member = bytearray(gz(encode_lines(args[0])))
+        member[-8] ^= 0xFF  # CRC32 is the 4 bytes at -8..-5
+        member[-7] ^= 0xFF
+        return bytes(member), "gzip with corrupted CRC trailer"
+    if kind == "raw_chunks":  # exact bytes inside the gzip: CRLF, no final \n
+        return gz(b"".join(args[0])), "raw chunks gzip"
+    raise ValueError(f"unknown input kind {kind!r}")
 
 
 def main():
@@ -479,35 +436,10 @@ def main():
             if name.endswith(".json.gz"):
                 os.remove(os.path.join(input_dir, name))
         for name, spec in files.items():
-            path = os.path.join(input_dir, name)
-            if isinstance(spec, tuple) and spec[0] == "truncated":
-                cut = write_truncated_gz(path)
-                print(f"{fixture}/input/{name}: truncated gzip, {cut} bytes")
-            elif isinstance(spec, tuple) and spec[0] == "raw":
-                with open(path, "wb") as f:
-                    f.write(spec[1])
-                print(f"{fixture}/input/{name}: raw non-gzip bytes, {len(spec[1])} bytes")
-            elif isinstance(spec, tuple) and spec[0] == "cut_inside_first_line":
-                write_cut_inside_first_line_gz(path)
-                print(f"{fixture}/input/{name}: cut inside first line, 25 bytes")
-            elif isinstance(spec, tuple) and spec[0] == "trailing_bytes":
-                write_gz_with_trailing(path, spec[1], spec[2])
-                print(f"{fixture}/input/{name}: gzip with trailing non-gzip bytes")
-            elif isinstance(spec, tuple) and spec[0] == "empty_gzip":
-                write_empty_gz(path)
-                print(f"{fixture}/input/{name}: valid empty gzip")
-            elif isinstance(spec, tuple) and spec[0] == "multi_member":
-                write_multi_member_gz(path, spec[1])
-                print(f"{fixture}/input/{name}: multi-member gzip")
-            elif isinstance(spec, tuple) and spec[0] == "corrupt_crc":
-                write_corrupt_crc_gz(path, spec[1])
-                print(f"{fixture}/input/{name}: gzip with corrupted CRC trailer")
-            elif isinstance(spec, tuple) and spec[0] == "raw_chunks":
-                write_raw_chunks_gz(path, spec[1])
-                print(f"{fixture}/input/{name}: raw chunks gzip")
-            else:
-                write_gz(path, spec)
-                print(f"{fixture}/input/{name}: {len(spec)} lines")
+            data, desc = build(spec)
+            with open(os.path.join(input_dir, name), "wb") as f:
+                f.write(data)
+            print(f"{fixture}/input/{name}: {desc}")
 
 
 if __name__ == "__main__":
