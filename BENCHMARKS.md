@@ -46,6 +46,8 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | pipeline, `payload_raw` null (G32) | real hour `2026-09-15-15` (SHA-256 `6c5def0c63c6574d…`), 81,142 lines, 81,136 canonical rows | 6.39 s | 124 MB (max RSS, `/usr/bin/time -l`) | `canon.duckdb` 7,614,464 B (7.2 MiB, all tables) = **93.8 B per canonical row** | `changes/2026-10-15-pipeline-payload-raw-null.md`, `pipeline` branch | pipeline |
 | 2026-10-16 | reference | real day 2026-09-15, 24 hours, 1,789,869 lines, 1.0 GB gzip | 92.24 s | 1,331 MB | — | `changes/2026-10-16-first-real-day-comparison.md` | reference |
 | 2026-10-16 | pipeline | same day | 508.94 s | 322 MB | `canon.duckdb` 175,648,768 B = 98.1 B/row | same | reference (ran it) |
+| 2026-10-16 | pipeline `f639320` (same code as `2bea3ea`) | same day, rerun on an otherwise idle machine | **124.36 s** | 328 MB (max RSS) | `canon.duckdb` 169,619,456 B | `changes/2026-10-16-pipeline-profile-real-day.md` | pipeline |
+| 2026-10-16 | pipeline `f639320`, by phase (driver script) | same day | 124.6 s total: classify 65.5, add 35.6, load 11.9, read 11.4, dedup 0.1, metrics 0.1 | — | — | `changes/2026-10-16-pipeline-profile-real-day.md` | pipeline |
 
 ## Estimates (not measurements)
 
