@@ -1,0 +1,52 @@
+# Benchmarks
+
+Every measured number goes here as it comes in: timings, sizes, counts, correctness results. This is the source for any resume or write-up claim, so each row says **how it was measured** and **where the evidence is**.
+
+**Rules (for every agent):**
+- **Add a row when you measure something.** Use one row per result, in the right table. Don't edit old rows: if a number changes, add a new row with the new date.
+- **Measured or estimated: say which.** Estimates go in their own table, with the arithmetic.
+- **Give a way to reproduce it:** the command, or the change note it's described in, plus the commit.
+- **Note the machine** if it's not the default below.
+- **Only numbers you actually observed.** No rounding up, and no "about" in a measured row.
+
+Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckDB 1.5.6, 228 GB disk (29 GB free on 2026-10-15).
+
+## Correctness
+
+| Date | Result | How measured | Evidence | By |
+|---|---|---|---|---|
+| 2026-10-14 | Reference matches hand-derived expected outputs on **17/17** fixtures (R1–R7) | `./check.sh` | `changes/2026-10-14-reference-calculation.md`, `27db891` | reference |
+| 2026-10-14 | Reference gives byte-identical output on two runs of 109 real hours | `compare_outputs.py dirs` on run 1 vs run 2 | `changes/2026-10-14-reference-calculation.md` | reference |
+| 2026-10-14 | Reference gives `truncated`, 200,000 lines on a CRC-damaged file, identical at read-chunk sizes 1 KB, 64 KB, 1 MB, 16 MB | direct probe | `changes/2026-10-14-reference-calculation.md` | reference |
+| 2026-10-14 | Fixture inputs regenerate byte-identically after a generator refactor (39 files) | `generate_inputs.py`, then `git status` | `changes/2026-10-14-review-and-tidy-F18-plus.md`, `d971a92` | reference |
+| 2026-10-14 | Reference matches verifier's hand-derived outputs on **27/27** fixtures (two independent authors, no disagreements) | `./check.sh` | `changes/2026-10-14-review-and-tidy-F18-plus.md` | reference |
+| 2026-10-15 | CI passes on first run (GitHub Actions, ubuntu-latest) | workflow `check` | run 38681981532 | reference |
+| 2026-10-15 | Pipeline matches **27/27** fixtures, all R1–R7 files; 37 tests pass | comparator in the pipeline clone | `pipeline` branch `4a18564` | pipeline |
+| 2026-10-15 | Pipeline output unchanged when run with the machine set to the Asia/Kolkata time zone | step 4 run | `pipeline` branch `d4bc998` | pipeline |
+| 2026-10-15 | Pipeline and reference each found the same 6 `repo: {}` lines (Q2) in hour `2026-09-15-15`, independently | pipeline r1 vs reference change note | `changes/2026-10-14-reference-calculation.md`; `pipeline` `4a18564` | both |
+
+## Spec rigour
+
+| Date | Result | Evidence |
+|---|---|---|
+| 2026-10-15 | **32 spec gaps** (G1–G32) found while implementing; 31 decided and written into the spec (v0.2 → v0.11) | `fixtures/SPEC-GAPS.md`, `01-event-semantics.md` §9 |
+| 2026-10-15 | The pipeline author's G28 report exposed a **crash in the reference** (lone surrogate escape). The reference was fixed, so the two-author design caught a real bug | `changes/2026-10-15-spec-v0.9-g27-g29.md` |
+| 2026-10-15 | The reference author's review exposed a pipeline/reference **disagreement on r2** for non-string `type` (G30), which no fixture covered. It was resolved in the spec before Gate 1 | `changes/2026-10-15-spec-v0.10-g30.md` |
+
+## Performance (measured)
+
+| Date | Implementation | Input | Wall time | Peak memory | Storage | Evidence | By |
+|---|---|---|---|---|---|---|---|
+| 2026-10-14 | reference | real hour `2026-09-15-15`, 81,142 lines | 5.3 s | 870 MB | — | `changes/2026-10-14-reference-calculation.md` | reference |
+| 2026-10-14 | reference | 109 hours `2026-09-15T15` → `2026-09-20T03` (2 present, 107 missing), 190,273 lines | 8.5 s | 1 GB (recorded as "~1 GB") | — | same | reference |
+| 2026-10-15 | pipeline | synthetic hour, 100,000 lines | 7 s | 466 MB | — | `pipeline` `5c91de9` | pipeline |
+| 2026-10-15 | pipeline | real hour `2026-09-15-15`, 81,136 canonical rows | 8.7 s | — | `canon.duckdb` 286 MB = **3,528 B/row** (`payload_raw` 256 MB) | `pipeline` `4a18564` | pipeline |
+
+## Estimates (not measurements)
+
+| Date | Estimate | Arithmetic | By |
+|---|---|---|---|
+| 2026-10-14 | Reference, full month: ~1 h | ~5 s per busy hour × 720 | reference |
+| 2026-10-15 | Pipeline, full month: ~1.7 h | 8.7 s × 720 | pipeline |
+| 2026-10-15 | Pipeline `canon.duckdb`, full month: 200–250 GB | 3,528 B/row × ~70M rows | pipeline |
+| 2026-10-15 | Month of source `.json.gz`: ~44 GB | from sampled hour sizes | pipeline |

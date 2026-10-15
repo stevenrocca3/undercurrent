@@ -49,6 +49,7 @@ python3 fixtures/generate_inputs.py      # regenerate inputs; must be byte-ident
 - **Every change gets its own note** in `changes/YYYY-MM-DD-<topic>.md`: why, what changed, proof (commands and results), and anything left open.
 - **No over-coding.** Write the simplest thing that meets the spec. Tidy files you touch without changing behaviour. Flag bigger messes in a separate refactor write-up instead of fixing them on the side.
 - **Commit locally; never push.** Steven reviews, then pushes.
+- **Record every measurement in `BENCHMARKS.md`** (timings, memory, sizes, row counts, fixture results, bugs found), one row each, following the rules at the top of that file. Mark estimates as estimates. These numbers back resume claims, so they must be exact and reproducible.
 - Run `./check.sh` before saying anything is done, and quote its result.
 
 ## Keep requests low (the quota is small)
