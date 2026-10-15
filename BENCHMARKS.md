@@ -24,6 +24,7 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | Pipeline matches **27/27** fixtures, all R1–R7 files; 37 tests pass | comparator in the pipeline clone | `pipeline` branch `4a18564` | pipeline |
 | 2026-10-15 | Pipeline output unchanged when run with the machine set to the Asia/Kolkata time zone | step 4 run | `pipeline` branch `d4bc998` | pipeline |
 | 2026-10-15 | Pipeline and reference each found the same 6 `repo: {}` lines (Q2) in hour `2026-09-15-15`, independently | pipeline r1 vs reference change note | `changes/2026-10-14-reference-calculation.md`; `pipeline` `4a18564` | both |
+| 2026-10-16 | **Pipeline and reference agree exactly on a full real day** (2026-09-15, 24 hours, 1,789,869 lines): all 7 files R1–R7 equal, no differences. 1,789,839 canonical, 30 Q2, 0 duplicates, 0 flags; r2 384 rows, r4 28,862 rows, r5 28,528 rows (2 cutoffs) | `compare_outputs.py dirs` (commands in note) | `changes/2026-10-16-first-real-day-comparison.md`; reference `main` `8f60d65`, pipeline `2bea3ea` | reference |
 
 ## Spec rigour
 
@@ -41,6 +42,8 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-14 | reference | 109 hours `2026-09-15T15` → `2026-09-20T03` (2 present, 107 missing), 190,273 lines | 8.5 s | 1 GB (recorded as "~1 GB") | — | same | reference |
 | 2026-10-15 | pipeline | synthetic hour, 100,000 lines | 7 s | 466 MB | — | `pipeline` `5c91de9` | pipeline |
 | 2026-10-15 | pipeline | real hour `2026-09-15-15`, 81,136 canonical rows | 8.7 s | — | `canon.duckdb` 286 MB = **3,528 B/row** (`payload_raw` 256 MB) | `pipeline` `4a18564` | pipeline |
+| 2026-10-16 | reference | real day 2026-09-15, 24 hours, 1,789,869 lines, 1.0 GB gzip | 92.24 s | 1,331 MB | — | `changes/2026-10-16-first-real-day-comparison.md` | reference |
+| 2026-10-16 | pipeline | same day | 508.94 s | 322 MB | `canon.duckdb` 175,648,768 B = 98.1 B/row | same | reference (ran it) |
 
 ## Estimates (not measurements)
 
@@ -50,3 +53,5 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | Pipeline, full month: ~1.7 h | 8.7 s × 720 | pipeline |
 | 2026-10-15 | Pipeline `canon.duckdb`, full month: 200–250 GB | 3,528 B/row × ~70M rows | pipeline |
 | 2026-10-15 | Month of source `.json.gz`: ~44 GB | from sampled hour sizes | pipeline |
+| 2026-10-16 | Month (30 days) run time: reference ~46 min, pipeline ~4.2 h | real-day times × 30 | reference |
+| 2026-10-16 | Pipeline `canon.duckdb`, month: ~6.9 GB | 98.1 B/row × ~70M rows | reference |
