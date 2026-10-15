@@ -30,7 +30,7 @@ The reference reads `fixtures/event_types.txt` by relative path, and the pipelin
 `tools/` runs on system `python3` (stdlib only); `reference/` needs `.venv` (DuckDB). That's easy to get wrong, and it's already in the commands in the PR description.
 **Proposal:** run everything through `.venv/bin/python`, and add one `check.sh` (or a `Makefile` target) that runs: comparator tests → reference on fixtures → `compare_outputs.py fixtures`. That's also what CI should run (§8 requires CI-generated evidence).
 
-## 4. The reference's edge-case probes aren't in the repo
+## 4. The reference's edge-case probes aren't in the repo — **(a) briefed to verifier** (`briefs/verifier-F18-plus.md`)
 
 The ~20 edge cases checked while writing the reference (null fields, `[1,2]`, bool `repo.id`, CRC error at 4 chunk sizes, multi-member gzip, …) ran as throwaway scripts. Today the only repeatable check on the reference is the 17 fixtures.
 **Proposal:** either (a) have the verifier turn them into fixtures F18+ with hand-written expected outputs, which is the §7-consistent route and covers the pipeline too, or (b) add `reference/test_reference.py` unit tests for `classify()` and `read_hour()`. **(a) recommended:** it tests both implementations, and (b) would test only the reference.
