@@ -36,8 +36,8 @@ def parse_object(text):
     """Parse text that must be one JSON object. Return {key: (value, raw_text)}.
 
     Same grammar as json.loads (duplicate keys: last wins), but it also keeps
-    each top-level value's raw text, so `payload_raw` and a non-string `type`
-    are stored exactly as they appeared, not re-serialized. Raises ValueError.
+    each top-level value's raw text, so a non-string `type` is stored exactly
+    as it appeared, not re-serialized (G30). Raises ValueError.
     """
     i = WS.match(text).end()
     if text[i:i + 1] != "{":
@@ -135,7 +135,7 @@ def classify(raw, partial):
         "org_id": _sub(org, "id") if is_int64(_sub(org, "id")) else None,
         "is_public": get("public") if isinstance(get("public"), bool) else None,
         "payload_action": _str_or_none(_sub(payload, "action")),
-        "payload_raw": members.get("payload", (None, None))[1],
+        "payload_raw": None,  # §2, G32: not stored in Gate 1 runs
     }
     text_fields = (event_id, event_type, fields["actor_login"], fields["repo_name"], fields["payload_action"])
     if not all(_utf8_ok(v) for v in text_fields if isinstance(v, str)):
@@ -166,7 +166,7 @@ CANON_COLUMNS = {
     "org_id": "BIGINT",
     "is_public": "BOOLEAN",              # SPEC-GAPS G27: null when `public` is not a JSON bool
     "payload_action": "VARCHAR",
-    "payload_raw": "VARCHAR NOT NULL",   # the payload's raw JSON text
+    "payload_raw": "VARCHAR",            # null in Gate 1 runs (§2, G32)
     "event_time": "TIMESTAMP NOT NULL",  # all TIMESTAMP columns are UTC, µs
     "source_file_hour": "TIMESTAMP NOT NULL",
     "source_line": "INTEGER NOT NULL",

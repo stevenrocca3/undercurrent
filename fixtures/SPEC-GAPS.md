@@ -145,8 +145,8 @@ These are places where `01-event-semantics.md` v0.2 was silent or ambiguous, so 
 - **Decision:** the last occurrence wins at every level, for every check and field, including the raw `type` text. `record_hash` is unaffected. (Raised by the reference agent; the pipeline already did this: `parse_object` at the top level, `json.loads` below it.)
 - **Depends:** none (not exercised by a fixture).
 
-## G32. `payload_raw` for a full month does not fit on the Gate 1 machine (§2, brief scale constraint): OPEN (raised 2026-10-15 by the pipeline agent)
+## G32. `payload_raw` for a full month does not fit on the Gate 1 machine (§2, brief scale constraint): DECIDED 2026-10-15 (owner, spec v0.12)
 - **Gap:** §2 requires `payload_raw` (not null) on every canonical record. One real hour (`2026-09-15-15`: 81,136 canonical rows) takes 273 MiB in `canon.duckdb`, or 3,528 bytes per row. 256 MB of that is `payload_raw`, which DuckDB stores uncompressed. For 720 hours that's about 200 GB (58M rows) to 250 GB (70M rows), against about 31 GB of free disk. Even the gzip source alone (61.7 MB for this hour) comes to about 44 GB for the month.
 - **Options:** (a) don't store `payload_raw` in the month run; it is reachable from `(source_file_hour, source_line)` plus the source file, so it would be fetched on demand, and no R1–R7 output reads it; (b) store it compressed (e.g. zstd per row); this still needs measuring, and it probably still doesn't fit; (c) run on a bigger disk.
-- **Provisional:** no change yet. The pipeline stores `payload_raw` as §2 says. The month run can't start until this is decided.
+- **Decision:** option (a). Gate 1 runs store `payload_raw` as null. The payload stays recoverable via `source_file_hour` + `source_line`, the manifest SHA-256 (§8) and `record_hash` (§2, v0.12).
 - **Depends:** none (no fixture is affected).

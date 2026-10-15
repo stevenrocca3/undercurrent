@@ -24,6 +24,7 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | Pipeline matches **27/27** fixtures, all R1–R7 files; 37 tests pass | comparator in the pipeline clone | `pipeline` branch `4a18564` | pipeline |
 | 2026-10-15 | Pipeline output unchanged when run with the machine set to the Asia/Kolkata time zone | step 4 run | `pipeline` branch `d4bc998` | pipeline |
 | 2026-10-15 | Pipeline and reference each found the same 6 `repo: {}` lines (Q2) in hour `2026-09-15-15`, independently | pipeline r1 vs reference change note | `changes/2026-10-14-reference-calculation.md`; `pipeline` `4a18564` | both |
+| 2026-10-15 | Pipeline matches **27/27** fixtures with `payload_raw` stored as null (G32); 37 tests pass | `python -m pipeline fixtures` + `compare_outputs.py fixtures` | `changes/2026-10-15-pipeline-payload-raw-null.md`, `pipeline` branch | pipeline |
 
 ## Spec rigour
 
@@ -41,6 +42,7 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-14 | reference | 109 hours `2026-09-15T15` → `2026-09-20T03` (2 present, 107 missing), 190,273 lines | 8.5 s | 1 GB (recorded as "~1 GB") | — | same | reference |
 | 2026-10-15 | pipeline | synthetic hour, 100,000 lines | 7 s | 466 MB | — | `pipeline` `5c91de9` | pipeline |
 | 2026-10-15 | pipeline | real hour `2026-09-15-15`, 81,136 canonical rows | 8.7 s | — | `canon.duckdb` 286 MB = **3,528 B/row** (`payload_raw` 256 MB) | `pipeline` `4a18564` | pipeline |
+| 2026-10-15 | pipeline, `payload_raw` null (G32) | real hour `2026-09-15-15` (SHA-256 `6c5def0c63c6574d…`), 81,142 lines, 81,136 canonical rows | 6.39 s | 124 MB (max RSS, `/usr/bin/time -l`) | `canon.duckdb` 7,614,464 B (7.2 MiB, all tables) = **93.8 B per canonical row** | `changes/2026-10-15-pipeline-payload-raw-null.md`, `pipeline` branch | pipeline |
 
 ## Estimates (not measurements)
 
@@ -50,3 +52,4 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | Pipeline, full month: ~1.7 h | 8.7 s × 720 | pipeline |
 | 2026-10-15 | Pipeline `canon.duckdb`, full month: 200–250 GB | 3,528 B/row × ~70M rows | pipeline |
 | 2026-10-15 | Month of source `.json.gz`: ~44 GB | from sampled hour sizes | pipeline |
+| 2026-10-15 | Pipeline `canon.duckdb`, full month, `payload_raw` null: 5.5–6.6 GB | 7,614,464 B × 720 hours = 5.48 GB (every hour like `2026-09-15-15`); 93.8 B/row × 70M rows = 6.57 GB | pipeline |
