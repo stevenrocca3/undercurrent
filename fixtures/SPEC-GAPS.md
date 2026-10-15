@@ -115,3 +115,8 @@ These are places where `01-event-semantics.md` v0.2 was silent or ambiguous, so 
 - **Decision:** a line containing invalid UTF-8 anywhere is Q1, so no canonical field can hold it. Folded into §2 in v0.7.
 - **Depends:** F18 line 13.
 
+
+## G26. Registry evidence when reading local files (§1, §8 criterion 5): OPEN (raised 2026-10-15 by the pipeline agent)
+- **Gap:** §1 says every hour's status comes "with the evidence (HTTP status, byte count, decompression error)". The Gate 1 pipeline reads hour files from a local `INPUT_DIR` (brief interface), so it has no HTTP status. The spec also doesn't say where the evidence goes: `registry.csv` (§6) holds only `source_file_hour,status`.
+- **Provisional:** the pipeline writes `registry_evidence.csv` beside `registry.csv`, with columns `source_file_hour,status,file_bytes,lines,error` (`file_bytes` empty when `missing`; `error` is the decompression error text, empty when `present`). It is not compared. No HTTP status column until something downloads the files and records it.
+- **Depends:** none (not compared by any fixture).
