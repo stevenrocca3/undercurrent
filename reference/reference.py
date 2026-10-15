@@ -126,6 +126,14 @@ def is_int64(v):
     return isinstance(v, int) and not isinstance(v, bool) and INT64_MIN <= v <= INT64_MAX
 
 
+def utf8_ok(s):
+    try:
+        s.encode("utf-8")
+        return True
+    except UnicodeEncodeError:  # a lone surrogate escape such as \ud800
+        return False
+
+
 def get(obj, *keys):
     for k in keys:
         if not isinstance(obj, dict) or obj.get(k) is None:
@@ -143,6 +151,10 @@ def classify(raw, is_partial):
     except (UnicodeDecodeError, ValueError):
         return "Q1", None
     if not isinstance(obj, dict):
+        return "Q1", None
+    texts = (obj.get("id"), obj.get("type"), get(obj, "actor", "login"), get(obj, "repo", "name"),
+             get(obj, "payload", "action"))
+    if any(isinstance(t, str) and not utf8_ok(t) for t in texts):  # G28: text fields must be UTF-8-writable
         return "Q1", None
     required = [("id",), ("type",), ("repo", "id"), ("actor", "id"), ("created_at",), ("public",), ("payload",)]
     if any(get(obj, *k) is None for k in required):
