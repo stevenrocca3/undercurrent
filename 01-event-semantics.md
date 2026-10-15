@@ -1,6 +1,6 @@
 # 01 — Canonical Event Semantics and Verification Contract
 
-**Status:** Draft v0.11 · 2026-10-15
+**Status:** Draft v0.12 · 2026-10-15
 **Owner:** Steven (approves all changes)
 **Applies to:** every pipeline component, verifier, and evidence artifact
 
@@ -55,7 +55,7 @@ Files outside the requested hour range are ignored.
 | `org_id` | int64 | yes | `org.id` | — | optional grouping |
 | `is_public` | bool | yes | `public` | null if not a JSON bool | filtering |
 | `payload_action` | string | yes | `payload.action` | as-is; null if missing or not a string | e.g. star detection |
-| `payload_raw` | json | no | `payload` | stored uninterpreted | downstream models |
+| `payload_raw` | json | yes | `payload` | stored uninterpreted; **not stored in Gate 1 runs** (null), see below | downstream models |
 | `event_time` | timestamp(µs, UTC) | no | `created_at` | ISO-8601 → UTC | when GitHub says it happened |
 | `source_file_hour` | timestamp(UTC) | no | file name | start of hour | GH Archive bucket |
 | `source_line` | int32 | no | line number, 1-based | — | tie-breaking, provenance |
@@ -82,6 +82,8 @@ Files outside the requested hour range are ignored.
 `org.id` never triggers quarantine. If it has the wrong type, `org_id` is stored as null.
 
 `type`, `public` and `payload` are checked for presence only, not JSON type. A non-string `type` is stored as its **raw JSON text exactly as it appears in the line**, never re-serialised: whitespace, key order and number spelling are kept (`[1,2]` stays `[1,2]`, `1.0` stays `1.0`). It is flagged `unrecognized_type`.
+
+**`payload_raw` in Gate 1 (G32).** Gate 1 runs store `payload_raw` as null: a month of payloads is roughly 200–250 GB, and no R1–R7 output reads it. The payload is still recoverable: (`source_file_hour`, `source_line`) locates the line in the GH Archive source file, the input manifest's SHA-256 (§8) proves the file is the same one, and `record_hash` proves the line is the same one. Storing payloads again needs a decision record (§10). The replay-vs-batch comparison is unaffected, since both sides store null.
 
 **Repeated keys.** If a key appears more than once in the same JSON object, at any level, the **last** occurrence wins, for every check and every field (including the raw `type` text). `record_hash` is unaffected, since it covers the raw line.
 
@@ -288,6 +290,7 @@ Gate 1 fails if any check above fails, or if any evidence artifact was produced 
 | G30 | Text of a non-string `type` | raw JSON text as it appears in the line, not re-serialised | 2026-10-15, v0.10 |
 | G31 | Repeated keys in one object | last occurrence wins, at every level | 2026-10-15, v0.11 |
 | — | Reference size limit (§6) | roughly 350 lines (was 250) | 2026-10-15, v0.11 |
+| G32 | `payload_raw` at month scale | null in Gate 1; recoverable via `source_file_hour` + `source_line` + manifest SHA-256 + `record_hash` | 2026-10-15, v0.12 |
 
 No open decisions remain in this document.
 
