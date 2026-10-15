@@ -1,4 +1,4 @@
-"""Time flags (R7) and point-in-time star counts (R5) over kept events (spec §4, §6).
+"""R2, R4, R5 and R7 over kept events (spec §4, §6).
 
 All TIMESTAMP columns are naive UTC, so cutoffs are passed as naive UTC too:
 an aware datetime would make DuckDB compare through the session time zone.
@@ -43,3 +43,19 @@ def stars_as_of(con, cutoffs):
         """, {"t": _naive_utc(t)}).fetchall():
             rows.append((t, repo_id, count))
     return rows
+
+
+def events_by_hour_and_type(con):
+    """[(source_file_hour, event_type, event_count)] (R2), attributed to the kept occurrence."""
+    return con.execute("""
+        SELECT source_file_hour, event_type, count(*) FROM events
+        GROUP BY ALL ORDER BY ALL
+    """).fetchall()
+
+
+def stars_by_repo_and_date(con):
+    """[(repo_id, event_date, star_events)] (R4), by UTC date of event_time."""
+    return con.execute(f"""
+        SELECT repo_id, CAST(event_time AS DATE), count(*) FROM events
+        WHERE {STAR} GROUP BY ALL ORDER BY ALL
+    """).fetchall()

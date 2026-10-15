@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One command for every repeatable check: comparator tests, then the reference
 # on all fixtures, then compare against the expected outputs, then the
-# pipeline's own tests.
+# pipeline's own tests, then the pipeline on all fixtures, compared the same way.
 # Uses .venv's Python (DuckDB); set PYTHON to override, e.g. in CI.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -19,3 +19,5 @@ trap 'rm -rf "$out"' EXIT
 "$PY" reference/reference.py fixtures fixtures "$out"
 "$PY" tools/compare_outputs.py fixtures fixtures "$out"
 "$PY" -m unittest pipeline/test_ingest.py pipeline/test_canon.py pipeline/test_dedup.py
+"$PY" -m pipeline fixtures fixtures "$out/pipeline"
+"$PY" tools/compare_outputs.py fixtures fixtures "$out/pipeline"

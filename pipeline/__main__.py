@@ -1,11 +1,11 @@
-"""Gate 1 pipeline (spec 01-event-semantics.md v0.10).
+"""Gate 1 pipeline (spec 01-event-semantics.md v0.11).
 
     python -m pipeline run INPUT_DIR FIRST_HOUR LAST_HOUR OUT_DIR [--cutoff T ...]
     python -m pipeline fixtures FIXTURES_DIR OUT_ROOT
 
 Hours are inclusive, e.g. 2026-09-01T00:00:00Z. Writes canon.duckdb (canon-v1,
-quarantine, and the dedup tables), r1.csv, r3.csv, r5.csv, flags.csv,
-registry.csv (R6) and registry_evidence.csv; a later step adds r2 and r4.
+quarantine, and the dedup tables), the R1-R7 files r1..r5.csv, registry.csv
+and flags.csv, and registry_evidence.csv.
 """
 
 import argparse
@@ -17,7 +17,7 @@ from pathlib import Path
 
 from pipeline.canon import CanonStore, classify
 from pipeline.dedup import deduplicate
-from pipeline.metrics import flag_counts, stars_as_of
+from pipeline.metrics import events_by_hour_and_type, flag_counts, stars_as_of, stars_by_repo_and_date
 from pipeline.ingest import HourRead, format_timestamp, parse_timestamp, requested_hours
 
 
@@ -52,11 +52,17 @@ def run(input_dir, first, last, out_dir, cutoffs):
         store.end_hour()
         reads.append(read)
     r3 = deduplicate(store.con)
+    r2 = events_by_hour_and_type(store.con)
+    r4 = stars_by_repo_and_date(store.con)
     flags = flag_counts(store.con)
     r5 = stars_as_of(store.con, cutoffs)
     store.close()
     write_csv(out_dir / "r1.csv", ["line_status", "count"], sorted(line_status.items()))
+    write_csv(out_dir / "r2.csv", ["source_file_hour", "event_type", "event_count"],
+              [[format_timestamp(h), event_type, n] for h, event_type, n in r2])
     write_csv(out_dir / "r3.csv", ["distinct_event_ids", "duplicate_count", "conflict_count"], [r3])
+    write_csv(out_dir / "r4.csv", ["repo_id", "event_date", "star_events"],
+              [[repo_id, f"{day:%Y-%m-%d}", n] for repo_id, day, n in r4])
     write_csv(out_dir / "r5.csv", ["cutoff", "repo_id", "star_events"],
               [[format_timestamp(t), repo_id, n] for t, repo_id, n in r5])
     write_csv(out_dir / "flags.csv", ["flag", "count"], flags)
