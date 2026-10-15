@@ -37,12 +37,13 @@ EVENT_TYPES = set(
     (Path(__file__).resolve().parent.parent / "fixtures" / "event_types.txt").read_text().split()
 )
 CHUNK = 1 << 20
+TS_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 # ---------- time helpers ----------
 
 def parse_hour(s):
-    return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    return datetime.strptime(s, TS_FORMAT).replace(tzinfo=timezone.utc)
 
 
 def to_us(dt):
@@ -50,7 +51,7 @@ def to_us(dt):
 
 
 def fmt_ts(us):
-    return (datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=us)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return (datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=us)).strftime(TS_FORMAT)
 
 
 def hour_file_name(dt):
@@ -71,7 +72,7 @@ def read_hour(path):
         return "missing", []
     data = path.read_bytes()
     out, failed, pos = [], False, 0
-    while not failed:
+    while True:
         d = zlib.decompressobj(wbits=31)
         for i in range(pos, len(data), CHUNK):
             d, failed = feed(d, data[i:i + CHUNK], out)
@@ -134,7 +135,7 @@ def get(obj, *keys):
 
 
 def classify(raw, is_partial):
-    """Return ("Q1".."Q4", None) or (None, fields). First failing check wins (§2)."""
+    """Return ("Q1".."Q4", None) or (None, canonical fields). First failing check wins (§2)."""
     if is_partial:
         return "Q1", None
     try:
@@ -159,6 +160,7 @@ def classify(raw, is_partial):
     action = payload.get("action") if isinstance(payload, dict) else None
     etype = obj["type"]
     return None, {
+        "record_hash": hashlib.sha256(raw[:-1] if raw.endswith(b"\r") else raw).hexdigest(),  # §2: no \r\n
         "event_id": obj["id"],
         "event_type": etype if isinstance(etype, str) else json.dumps(etype),
         "recognized": isinstance(etype, str) and etype in EVENT_TYPES,
@@ -171,10 +173,9 @@ def classify(raw, is_partial):
 
 # ---------- the run ----------
 
-CANON_TYPES = {"event_id": "VARCHAR", "event_type": "VARCHAR", "recognized": "BOOLEAN",
-               "repo_id": "BIGINT", "event_us": "BIGINT", "event_date": "VARCHAR",
-               "is_star": "BOOLEAN", "hour_us": "BIGINT", "line": "INTEGER", "record_hash": "VARCHAR"}
-COLUMNS = list(CANON_TYPES)
+CANON_TYPES = {"record_hash": "VARCHAR", "event_id": "VARCHAR", "event_type": "VARCHAR",
+               "recognized": "BOOLEAN", "repo_id": "BIGINT", "event_us": "BIGINT",
+               "event_date": "VARCHAR", "is_star": "BOOLEAN", "hour_us": "BIGINT", "line": "INTEGER"}
 CSV_COLUMNS = "{" + ", ".join(f"'{c}': '{t}'" for c, t in CANON_TYPES.items()) + "}"
 
 
@@ -184,13 +185,20 @@ def run(input_dir, first, last, cutoffs, out_dir):
     db = duckdb.connect(str(tmp / "reference.duckdb"))  # on disk: a month does not fit in RAM
     db.execute(f"SET temp_directory = '{tmp}'")
     db.execute("SET memory_limit = '3GB'")
-    db.execute(f"CREATE TABLE canon ({', '.join(f'{c} {t}' for c, t in CANON_TYPES.items())})")
+    r1, registry = load(db, input_dir, first, last, tmp)
+    write_outputs(db, r1, registry, cutoffs, out_dir)
+    db.close()
+    shutil.rmtree(tmp)
 
+
+def load(db, input_dir, first, last, tmp):
+    """Parse every requested hour into table `canon`; return (r1 counts, registry rows)."""
+    db.execute(f"CREATE TABLE canon ({', '.join(f'{c} {t}' for c, t in CANON_TYPES.items())})")
     r1, registry = Counter({"Q1": 0, "Q2": 0, "Q3": 0, "Q4": 0, "canonical": 0}), []
     hour = first
     while hour <= last:
         status, lines = read_hour(input_dir / hour_file_name(hour))
-        registry.append((fmt_ts(to_us(hour)), status))
+        registry.append((hour.strftime(TS_FORMAT), status))
         hour_csv = tmp / "hour.csv"
         with open(hour_csv, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
@@ -200,13 +208,16 @@ def run(input_dir, first, last, cutoffs, out_dir):
                     r1[code] += 1
                     continue
                 r1["canonical"] += 1
-                row.update(hour_us=to_us(hour), line=line_no,
-                           record_hash=hashlib.sha256(raw[:-1] if raw.endswith(b"\r") else raw).hexdigest())
-                w.writerow([row[c] for c in COLUMNS])
+                row.update(hour_us=to_us(hour), line=line_no)
+                w.writerow([row[c] for c in CANON_TYPES])
         db.execute(f"INSERT INTO canon SELECT * FROM read_csv('{hour_csv}', auto_detect = false, header = false, "
                    f"delim = ',', quote = '\"', escape = '\"', columns = {CSV_COLUMNS})")
         hour += timedelta(hours=1)
+    return r1, registry
 
+
+def write_outputs(db, r1, registry, cutoffs, out_dir):
+    """Deduplicate `canon` (§3) and write R1-R7 (§6)."""
     # §3: keep the smallest (source_file_hour, source_line) per event_id.
     db.execute("""CREATE TABLE ranked AS SELECT *,
         row_number() OVER w AS rn,
@@ -245,8 +256,6 @@ def run(input_dir, first, last, cutoffs, out_dir):
         [US_PER_HOUR, 2 * US_PER_HOUR]).fetchone()
     write_csv(out_dir / "flags.csv", ["flag", "count"],
               [("future_skewed", future), ("late", late), ("unrecognized_type", unrecognized)])
-    db.close()
-    shutil.rmtree(tmp)
 
 
 def write_csv(path, header, rows):
