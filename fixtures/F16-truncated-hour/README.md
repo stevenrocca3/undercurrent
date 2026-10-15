@@ -6,7 +6,7 @@ The F01 baseline is gzipped, and then the compressed bytes are cut off partway t
 - Input: `input/2026-09-01-0.json.gz`, **255 bytes**, no gzip trailer.
 - Depends on SPEC-GAPS G12 (decided): truncated = the gzip stream ends early after yielding at least one line; complete lines are kept; the partial last line is Q1.
 
-## How the file is built (`write_truncated_gz` in `../generate_inputs.py`)
+## How the file is built (`truncated_gz` in `../generate_inputs.py`)
 
 1. Write `B1\nB2\nB3\nB4\n` + `B5_HEAD` into a gzip stream (mtime 0, no filename).
 2. Do a `Z_SYNC_FLUSH`. That forces every byte so far into complete deflate output and ends with the marker `00 00 ff ff`. Record the compressed offset (255).

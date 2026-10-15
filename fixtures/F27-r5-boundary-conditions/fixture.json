@@ -1,0 +1,1 @@
+{"id": "F27", "title": "R5 point-in-time boundary conditions: event_time == t, event_time == t - 7d, available_at == t", "requested_hours": ["2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"], "cutoffs": ["2026-09-01T07:00:00Z"]}

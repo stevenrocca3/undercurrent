@@ -13,6 +13,7 @@ import compare_outputs as co  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 FIXTURES = REPO / "fixtures"
+FIXTURE_DIRS = [fx for fx in FIXTURES.iterdir() if (fx / "expected").is_dir()]
 
 
 def run(argv):
@@ -25,8 +26,9 @@ def run(argv):
 class CompareTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        self.exp = FIXTURES / "F12-point-in-time-trap" / "expected"
+        self.exp = self.tmp / "exp"
         self.act = self.tmp / "act"
+        shutil.copytree(FIXTURES / "F12-point-in-time-trap" / "expected", self.exp)
         shutil.copytree(self.exp, self.act)
 
     def tearDown(self):
@@ -93,9 +95,9 @@ class CompareTests(unittest.TestCase):
         self.assertEqual(self.dirs()[0], 1)
 
     def test_header_only_files_pass(self):
-        for d in (self.exp_copy(), self.act):
+        for d in (self.exp, self.act):
             (d / "r4.csv").write_text("repo_id,event_date,star_events\n")
-        code, out = run(["x", "dirs", str(self.exp2), str(self.act)])
+        code, out = self.dirs()
         self.assertEqual(code, 0, out)
 
     def test_header_only_vs_rows_fails(self):
@@ -109,8 +111,8 @@ class CompareTests(unittest.TestCase):
         self.assertIn("0-byte", out)
 
     def test_header_never_sorted_into_rows(self):
-        # A header-like line that would sort before data must stay the header;
-        # moving the header into the body (and a data row up) must fail.
+        # Swap the header with the first data row: the header must be compared
+        # as line 1, not sorted in with the rows.
         p = self.act / "r5.csv"
         header, *rows = p.read_text().splitlines()
         p.write_text("\n".join([rows[0], header] + rows[1:]) + "\n")
@@ -128,11 +130,6 @@ class CompareTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("actual file invalid", out)
 
-    def exp_copy(self):
-        self.exp2 = self.tmp / "exp"
-        shutil.copytree(self.exp, self.exp2)
-        return self.exp2
-
     def test_extra_file_noted_not_failed(self):
         (self.act / "debug.csv").write_text("a\n")
         code, out = self.dirs()
@@ -141,19 +138,24 @@ class CompareTests(unittest.TestCase):
 
     def test_fixtures_mode_all_pass_against_themselves(self):
         root = self.tmp / "actual_root"
-        for fx in FIXTURES.iterdir():
-            if (fx / "expected").is_dir():
-                shutil.copytree(fx / "expected", root / fx.name)
+        for fx in FIXTURE_DIRS:
+            shutil.copytree(fx / "expected", root / fx.name)
         code, out = run(["x", "fixtures", str(FIXTURES), str(root)])
         self.assertEqual(code, 0, out)
-        self.assertIn("17/17 fixtures equal", out)
+        n = len(FIXTURE_DIRS)
+        self.assertIn(f"{n}/{n} fixtures equal", out)
 
     def test_fixtures_mode_missing_fixture_output_fails(self):
         root = self.tmp / "empty_root"
         root.mkdir()
         code, out = run(["x", "fixtures", str(FIXTURES), str(root)])
         self.assertEqual(code, 1)
-        self.assertIn("0/17 fixtures equal", out)
+        self.assertIn(f"0/{len(FIXTURE_DIRS)} fixtures equal", out)
+
+    def test_multiset_minus_ignores_order_and_counts_duplicates(self):
+        self.assertEqual(co.multiset_minus(["b", "a", "a", "c"], ["a", "c", "b"]), ["a"])
+        self.assertEqual(co.multiset_minus(["x"], []), ["x"])
+        self.assertEqual(co.multiset_minus([], ["x"]), [])
 
     def test_usage_error(self):
         self.assertEqual(run(["x", "bogus", "a", "b"])[0], 2)

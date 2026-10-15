@@ -1,8 +1,8 @@
-# Synthetic fixtures F1-F17
+# Synthetic fixtures F1-F27
 
-These fixtures implement `01-event-semantics.md` v0.2, §7 (F01-F13), plus F14-F17, which cover the quarantine and registry rules decided on 2026-10-14 (see `SPEC-GAPS.md`). The verifier agent wrote them, and Steven hand-checks them. **Expected outputs are hand-authored from the reasoning in each fixture's README. No code computes them.** `generate_inputs.py` only writes the `input/*.json.gz` files, from literal strings. Two special cases: F16 is a gzip stream cut at a sync-flush point, and F17 hour 1 is raw non-gzip bytes.
+These fixtures implement `01-event-semantics.md` v0.2, §7 (F01-F13), plus F14-F17, which cover the quarantine and registry rules decided on 2026-10-14, and F18-F27, which cover the rules decided in spec v0.4-v0.6 (see `SPEC-GAPS.md`). The verifier agent wrote them, and Steven hand-checks them. **Expected outputs are hand-authored from the reasoning in each fixture's README. No code computes them.** `generate_inputs.py` only writes the `input/*.json.gz` files, from literal strings. Special byte-level cases are handled via dedicated helpers.
 
-Every fixture except F01 is **F01 plus one anomaly**. F01's hour-0 file (6 lines: B1..B6) is reused byte for byte. So check F01 first; each other fixture's expected output is F01's plus a small delta, explained in its README.
+Every fixture except F01 is **F01 plus one anomaly** (or clean multi-hour tests). F01's hour-0 file (6 lines: B1..B6) is reused byte for byte. So check F01 first; each other fixture's expected output is F01's plus a small delta, explained in its README.
 
 Assumptions the spec does not pin down are listed in `SPEC-GAPS.md`, and each fixture README points to the ones it depends on.
 
@@ -27,6 +27,16 @@ Assumptions the spec does not pin down are listed in `SPEC-GAPS.md`, and each fi
 | F15-q4-wrong-id-type | numeric id; string repo.id; string actor.id | Q4 3, canonical 7; string org.id is NOT Q4 |
 | F16-truncated-hour | F01 gzip cut mid-line 5 | registry truncated; canonical 4, Q1 1; 501 = 1, 502 = 1 |
 | F17-unreadable-hour | hour 1 is plain JSON, not gzip | registry present/unreadable; everything else as F01 |
+| F18-q1-non-object-and-bytes | valid JSON non-object, empty lines, bad UTF-8 | canonical 8, Q1 5; r3 8,0,0 |
+| F19-q2-null-and-missing | required field null, missing public, repo {} | canonical 6, Q2 5; r3 6,0,0 |
+| F20-q4-id-types-and-precedence | bool repo.id, float actor.id, Q2 beats Q4 | canonical 6, Q2 1, Q4 2; r3 6,0,0 |
+| F21-q3-timestamp-strictness | timestamp parsing strictness, valid ISO-8601 variations | canonical 8, Q3 7; r4 501 on 2026-08-31 = 1 |
+| F22-type-public-payload-wrong-types | non-string type, string public/payload | canonical 9, unrecognized_type 1; r2 has `[1]` = 1 |
+| F23-registry-corner-cases | 7 registry edge cases across 7 hours | registry: present, unreadable, truncated, unreadable, present, present, truncated; canonical 10 |
+| F24-line-endings-and-cr | CRLF \r excluded from hash, missing trailing \n | canonical 9, r3 8,1,0 (conflict 0); trailing line recovered |
+| F25-hours-outside-requested-range | hours outside requested range ignored | registry 1 row (hour 01 present); stars in hour 0 and 2 ignored |
+| F26-flags-from-kept-occurrence | flags evaluated from kept occurrence hour | canonical 11, r3 9,2,0; future_skewed 1, late 0 |
+| F27-r5-boundary-conditions | R5 boundary conditions: t-7d, t, available_at == t | canonical 8; r5 501 = 3, 502 = 1, 503 = 0 (event_time == t excluded) |
 
 ## Layout
 

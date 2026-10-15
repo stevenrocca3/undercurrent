@@ -41,41 +41,77 @@ These are places where `01-event-semantics.md` v0.2 was silent or ambiguous, so 
 
 ## G9. Flags counted after dedup (§4): DECIDED 2026-10-14 (owner)
 - **Decision:** flags are counted over **kept** occurrences only, using the kept occurrence's `source_file_hour`.
-- **Depends:** none (latent).
+- **Depends:** F26.
 
 ## G10. R5 window bounds (§6): DECIDED 2026-10-14 (owner)
 - **Decision:** inclusive at `t − 7d`, exclusive at `t`; `available_at <= t` inclusive.
-- **Depends:** F12.
+- **Depends:** F12, F27.
 
 ## G11. `event_time == t` in R5: DECIDED 2026-10-14 (owner)
-- **Decision:** excluded (`< t`). **Not exercised.**
+- **Decision:** excluded (`< t`).
+- **Depends:** F27.
 
 ## G12. Registry statuses (§1): DECIDED 2026-10-14 (owner)
 - **Decision:**
   - `missing` = no file.
-  - `unreadable` = not gzip, or the stream fails before yielding any line; the hour contributes no lines.
-  - `truncated` = the gzip stream ends early (EOF/CRC error) after yielding ≥ 1 line. Complete lines are kept, and the partial last line is Q1.
+  - `unreadable` = not gzip, or the stream fails before yielding any complete line; the hour contributes no lines.
+  - `truncated` = the gzip stream ends early (EOF/CRC error) after yielding ≥ 1 complete line. Complete lines are kept, and the partial last line is Q1.
   - A bad line inside a fully decoded file does not change the status.
-- **Depends:** F09 (`missing`), F16 (`truncated`), F17 (`unreadable`), F05 (`present` despite Q1).
+- **Depends:** F09 (`missing`), F16 (`truncated`), F17 (`unreadable`), F05 (`present` despite Q1), F23.
 - **Implementation note:** Python's `gzip.open` line iteration raises `EOFError` and never returns the partial line. Use `zlib.decompressobj(wbits=31)` to see it. See the F16 README.
 
 ## G13. Valid JSON that is not an object, and empty lines (§2): DECIDED 2026-10-14 (owner)
-- **Decision:** Q1. Not exercised.
+- **Decision:** Q1.
+- **Depends:** F18.
 
 ## G14. `public` and `payload` missing (§2): DECIDED 2026-10-14 (owner)
-- **Decision:** **Q2.** Q2 required fields are `id`, `type`, `repo.id`, `actor.id`, `created_at`, `public`, `payload`. (§2's Q2 list needs the matching edit through change control.)
-- **Depends:** F06 line 11 (no `payload` → Q2). A missing `public` is not exercised.
+- **Decision:** **Q2.** Q2 required fields are `id`, `type`, `repo.id`, `actor.id`, `created_at`, `public`, `payload`.
+- **Depends:** F06 line 11 (no `payload` → Q2), F19 (no `public` → Q2).
 
 ## G15. Star detection: DECIDED 2026-10-14 (owner)
 - **Decision:** a star is `type == "WatchEvent"` and `payload.action == "started"` (exact string).
 - **Depends:** F01 line 5 (IssuesEvent `opened` is not a star).
 
 ## G16. Required fields present as JSON `null`: DECIDED 2026-10-14 (owner)
-- **Decision:** treated as missing → Q2. Not exercised.
+- **Decision:** treated as missing → Q2.
+- **Depends:** F19.
 
 ## G17. `created_at` formats accepted (§2, Q3): DECIDED 2026-10-14 (owner)
 - **Decision:** accept RFC 3339 with `Z` or a numeric offset, converted to UTC. Anything else is Q3.
-- **Depends:** F14 (month 13 → Q3; `-02:00` offset → canonical at 00:50Z).
+- **Depends:** F14 (month 13 → Q3; `-02:00` offset → canonical at 00:50Z), F21 (`+05:30` offset).
 
 ## G18. Files outside the requested range: DECIDED 2026-10-14 (owner)
-- **Decision:** ignored. No fixture includes one.
+- **Decision:** ignored.
+- **Depends:** F25.
+
+## G19. `type`, `public`, and `payload` type checks (§2): DECIDED 2026-10-14 (owner, spec v0.6)
+- **Decision:** `type`, `public`, and `payload` are checked for presence only, not JSON type. A non-string `type` is stored as its JSON text and flagged `unrecognized_type`.
+- **Depends:** F22.
+
+## G20. `unreadable` vs complete lines (§1): DECIDED 2026-10-14 (owner, spec v0.6)
+- **Decision:** `unreadable` = decompression fails before yielding any *complete* line; partial bytes are discarded and not counted as Q1.
+- **Depends:** F23 hour 1.
+
+## G21. Trailing non-gzip bytes after complete member (§1): DECIDED 2026-10-14 (owner, spec v0.6)
+- **Decision:** non-gzip bytes after a complete gzip member make the hour `truncated`.
+- **Depends:** F23 hour 2.
+
+## G22. Q3 timestamp parsing strictness (§2): DECIDED 2026-10-14 (owner, spec v0.6)
+- **Decision:** strict form `YYYY-MM-DDTHH:MM:SS[.f{1,6}](Z|±HH:MM)`: uppercase `T` and `Z`, at most 6 fractional digits, no leap second `:60`.
+- **Depends:** F21.
+
+## G23. `repo.id` / `actor.id` outside int64 range (§2, Q4): DECIDED 2026-10-14 (owner)
+- **Gap:** §2 states `actor.id` and `repo.id` are int64, and Q4 requires them to be integers. The spec does not state whether an integer exceeding 64-bit signed bounds (`[-2^63, 2^63 - 1]`) triggers Q4, is rejected, or is an error.
+- **Decision:** Q4. Folded into §2 in v0.7.
+- **Depends:** none (not exercised).
+
+## G24. CSV quoting and escaping rules (§6): DECIDED 2026-10-14 (owner)
+- **Gap:** §6 specifies CSV column formats but does not specify RFC 4180 escaping/quoting when cell content contains commas, quotes, or newlines (e.g. if a non-string `type` was a JSON object `{"a":1,"b":2}`).
+- **Decision:** RFC 4180 quoting with LF line endings. A cell containing `,`, `"` or a line break is quoted, with inner `"` doubled; nothing else is quoted, and cell text is never trimmed. Folded into §6 in v0.7.
+- **Depends:** none (F22 uses `[1]`, which needs no quoting).
+
+## G25. Invalid UTF-8 bytes in canonical fields (§2): DECIDED 2026-10-14 (owner)
+- **Gap:** If invalid UTF-8 bytes occur inside a canonical field (e.g. non-string or raw field that decoded partially), writing it to CSV would violate UTF-8 encoding rules (§6).
+- **Decision:** a line containing invalid UTF-8 anywhere is Q1, so no canonical field can hold it. Folded into §2 in v0.7.
+- **Depends:** F18 line 13.
+
