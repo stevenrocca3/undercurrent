@@ -5,3 +5,7 @@ pipeline_out/
 .agents/skills/
 .claude/skills/
 skills-lock.json
+
+# iCloud Drive sync-conflict copies ("name 2.ext")
+* 2
+* 2.*
