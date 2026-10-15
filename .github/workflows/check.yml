@@ -1,0 +1,21 @@
+# Runs every repeatable check (check.sh) on each push and pull request.
+# §8 criterion 6: Gate 1 evidence counts only if CI produced it. This workflow
+# is the base; the Gate 1 evidence job (evidence/gate1.json) comes later.
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - run: ./check.sh
+        env:
+          PYTHON: python
