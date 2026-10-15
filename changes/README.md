@@ -32,6 +32,7 @@ A note's own **Status** line records the moment it was written (often "not pushe
 | 2026-10-15-benchmarks-md | `BENCHMARKS.md` and the rule for all agents | #10 |
 | 2026-10-15-spec-v0.12-g32 | spec v0.12: G32, no `payload_raw` in Gate 1 | #11 |
 | 2026-10-16-first-real-day-comparison | first real-day comparison: pipeline = reference on 2026-09-15 | #12 |
-| 2026-10-16-real-week-comparison | real week: pipeline = reference on 2026-09-15 → 21 (15M events) | — |
+| 2026-10-16-real-week-comparison | real week: pipeline = reference on 2026-09-15 → 21 (15M events) | #14 |
+| 2026-10-16-restore-benchmark-rows | restore 4 benchmark rows dropped by a merge | — |
 
 Pipeline notes (`2026-10-15-pipeline-*`) live on the `pipeline` branch until it merges.
