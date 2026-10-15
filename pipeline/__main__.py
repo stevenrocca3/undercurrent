@@ -1,17 +1,21 @@
-"""Gate 1 pipeline (spec 01-event-semantics.md v0.7).
+"""Gate 1 pipeline (spec 01-event-semantics.md v0.8).
 
     python -m pipeline run INPUT_DIR FIRST_HOUR LAST_HOUR OUT_DIR [--cutoff T ...]
     python -m pipeline fixtures FIXTURES_DIR OUT_ROOT
 
-Hours are inclusive, e.g. 2026-09-01T00:00:00Z. Step 1 (ingest) writes only
-registry.csv (R6) and registry_evidence.csv; later steps add r1-r5 and flags.
+Hours are inclusive, e.g. 2026-09-01T00:00:00Z. Writes canon.duckdb (canon-v1
+and quarantine tables), r1.csv, registry.csv (R6) and registry_evidence.csv;
+later steps add r2-r5 and flags.
 """
 
 import argparse
 import json
 import sys
+from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
+from pipeline.canon import CanonStore, classify
 from pipeline.ingest import HourRead, format_timestamp, parse_timestamp, requested_hours
 
 
@@ -28,14 +32,25 @@ def write_csv(path, header, rows):
             f.write(",".join(csv_cell(str(cell)) for cell in row) + "\n")
 
 
+R1_ROWS = ["Q1", "Q2", "Q3", "Q4", "canonical"]  # always present (§6)
+
+
 def run(input_dir, first, last, out_dir, cutoffs):
     out_dir.mkdir(parents=True, exist_ok=True)
+    store = CanonStore(out_dir / "canon.duckdb", datetime.now(timezone.utc))
+    line_status = Counter({code: 0 for code in R1_ROWS})
     reads = []
     for hour in requested_hours(first, last):
         read = HourRead(input_dir, hour)
-        for _line in read.lines():
-            pass  # step 2 will parse and quarantine here
+        store.begin_hour(hour)
+        for source_line, raw, partial in read.lines():
+            code, fields = classify(raw, partial)
+            line_status[code] += 1
+            store.add(source_line, raw, code, fields)
+        store.end_hour()
         reads.append(read)
+    store.close()
+    write_csv(out_dir / "r1.csv", ["line_status", "count"], sorted(line_status.items()))
     write_csv(out_dir / "registry.csv", ["source_file_hour", "status"],
               [[format_timestamp(r.hour), r.status] for r in reads])
     write_csv(out_dir / "registry_evidence.csv",
