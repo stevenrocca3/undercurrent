@@ -12,6 +12,7 @@ Every measured number goes here as it comes in: timings, sizes, counts, correctn
 Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckDB 1.5.6, 228 GB disk (29 GB free on 2026-10-15).
 
 ## Correctness
+| 2026-10-16 | **Pipeline and reference agree exactly on a full real day** (2026-09-15, 24 hours, 1,789,869 lines): all 7 files R1–R7 equal, no differences. 1,789,839 canonical, 30 Q2, 0 duplicates, 0 flags; r2 384 rows, r4 28,862 rows, r5 28,528 rows (2 cutoffs) | `compare_outputs.py dirs` (commands in note) | `changes/2026-10-16-first-real-day-comparison.md`; reference `main` `8f60d65`, pipeline `2bea3ea` | reference |
 
 | Date | Result | How measured | Evidence | By |
 |---|---|---|---|---|
@@ -34,6 +35,8 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | The reference author's review exposed a pipeline/reference **disagreement on r2** for non-string `type` (G30), which no fixture covered. It was resolved in the spec before Gate 1 | `changes/2026-10-15-spec-v0.10-g30.md` |
 
 ## Performance (measured)
+| 2026-10-16 | reference | real day 2026-09-15, 24 hours, 1,789,869 lines, 1.0 GB gzip | 92.24 s | 1,331 MB | — | `changes/2026-10-16-first-real-day-comparison.md` | reference |
+| 2026-10-16 | pipeline | same day | 508.94 s | 322 MB | `canon.duckdb` 175,648,768 B = 98.1 B/row | same | reference (ran it) |
 
 | Date | Implementation | Input | Wall time | Peak memory | Storage | Evidence | By |
 |---|---|---|---|---|---|---|---|
@@ -43,6 +46,8 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | pipeline | real hour `2026-09-15-15`, 81,136 canonical rows | 8.7 s | — | `canon.duckdb` 286 MB = **3,528 B/row** (`payload_raw` 256 MB) | `pipeline` `4a18564` | pipeline |
 
 ## Estimates (not measurements)
+| 2026-10-16 | Month (30 days) run time: reference ~46 min, pipeline ~4.2 h | real-day times × 30 | reference |
+| 2026-10-16 | Pipeline `canon.duckdb`, month: ~6.9 GB | 98.1 B/row × ~70M rows | reference |
 
 | Date | Estimate | Arithmetic | By |
 |---|---|---|---|
