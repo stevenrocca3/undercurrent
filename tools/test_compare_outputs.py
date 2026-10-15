@@ -137,19 +137,22 @@ class CompareTests(unittest.TestCase):
 
     def test_fixtures_mode_all_pass_against_themselves(self):
         root = self.tmp / "actual_root"
+        count = 0
         for fx in FIXTURES.iterdir():
             if (fx / "expected").is_dir():
                 shutil.copytree(fx / "expected", root / fx.name)
+                count += 1
         code, out = run(["x", "fixtures", str(FIXTURES), str(root)])
         self.assertEqual(code, 0, out)
-        self.assertIn("17/17 fixtures equal", out)
+        self.assertIn(f"{count}/{count} fixtures equal", out)
 
     def test_fixtures_mode_missing_fixture_output_fails(self):
         root = self.tmp / "empty_root"
         root.mkdir()
+        count = sum(1 for fx in FIXTURES.iterdir() if (fx / "expected").is_dir())
         code, out = run(["x", "fixtures", str(FIXTURES), str(root)])
         self.assertEqual(code, 1)
-        self.assertIn("0/17 fixtures equal", out)
+        self.assertIn(f"0/{count} fixtures equal", out)
 
     def test_multiset_minus_ignores_order_and_counts_duplicates(self):
         self.assertEqual(co.multiset_minus(["b", "a", "a", "c"], ["a", "c", "b"]), ["a"])
