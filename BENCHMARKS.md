@@ -56,6 +56,10 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-16 | pipeline replay (`ef6a5e0`, one hour at a time, serial, per-hour dedup) | same day | 88.17 s | 1,217 MB (max RSS) | — | `changes/2026-10-16-pipeline-replay-vs-batch.md`, `pipeline` `ef6a5e0` | pipeline |
 | 2026-10-16 | pipeline batch (`40ec71e`, writes `canon_digest.csv`) | real week 2026-09-15 → 09-21, 168 hours | 439.43 s | 2,289 MB (max RSS, one process) | — | `changes/2026-10-16-pipeline-replay-vs-batch-week.md`, `pipeline` `40ec71e` | pipeline |
 | 2026-10-16 | pipeline replay (`40ec71e`, serial, per-hour dedup) | same week | 793.52 s | 2,647 MB (max RSS) | — | `changes/2026-10-16-pipeline-replay-vs-batch-week.md`, `pipeline` `40ec71e` | pipeline |
+| 2026-10-15 | pipeline `table_digests` only (`7017a34`), read-only on the clean month run's `canon.duckdb` | month canon 54,661,441 rows | 442.81 s | — | — | `changes/2026-10-15-pipeline-digest-per-hour.md` | pipeline |
+| 2026-10-15 | pipeline `table_digests` only, whole-table sort (`7017a34`) vs per hour (`4dac241`), same SHA-256s | week `canon.duckdb` (`56878e6` run), 14,964,610 rows | 83.21 s vs 39.29 s | — | — | same | pipeline |
+| 2026-10-15 | pipeline batch, phase timer: `df52f20` vs `4dac241` (`table_digests` 39.82 s of it), run back to back, load avg 12–22 | real week 2026-09-15 → 09-21 | 213.55 s vs 242.82 s | — | — | same | pipeline |
+| 2026-10-15 | pipeline batch (`4dac241`), outputs byte-identical to the clean run; load avg up to 17.22 during run | real month 2026-09, 720 hours, 24 cutoffs | 1,096.78 s | 1,363 MB (max RSS), 3,771 MB peak footprint | `canon.duckdb` 4,312,805,376 B | same | pipeline |
 
 ## Estimates (not measurements)
 
