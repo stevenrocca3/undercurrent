@@ -1,6 +1,6 @@
 # 01 — Canonical Event Semantics and Verification Contract
 
-**Status:** Draft v0.7 · 2026-10-14
+**Status:** Draft v0.8 · 2026-10-15
 **Owner:** Steven (approves all changes)
 **Applies to:** every pipeline component, verifier, and evidence artifact
 
@@ -25,7 +25,7 @@
 - Repo and actor names change over time; numeric IDs are the stable keys.
 - Bots are not identified or filtered in this document.
 
-**Missing-hour registry.** Every expected hour in scope gets exactly one status, with the evidence (HTTP status, byte count, decompression error):
+**Missing-hour registry.** Every expected hour in scope gets exactly one status, with its evidence (see *Registry evidence* below):
 
 | Status | Test |
 |---|---|
@@ -37,6 +37,8 @@
 Readers must recover the bytes after the last `\n` of a truncated stream as a final line. Iterating over `gzip.open()` in Python raises `EOFError` without returning those bytes; decompress with `zlib.decompressobj(wbits=31)` instead. F16 covers this.
 
 Files outside the requested hour range are ignored.
+
+**Registry evidence.** The pipeline writes `registry_evidence.csv` next to `registry.csv`, with columns `source_file_hour,status,file_bytes,lines,error`. `file_bytes` is empty for `missing`. `lines` is the number of lines recovered. `error` is the decompression error text, empty for `present`. It is an operational record: it is **not** part of the R1–R7 contract, is not compared, and the reference calculation does not produce it. Historical backfill reads local files and has no HTTP status. When live ingestion downloads files, it adds an `http_status` column through change control (§10).
 
 ---
 
@@ -277,6 +279,7 @@ Gate 1 fails if any check above fails, or if any evidence artifact was produced 
 | G23 | `actor.id` / `repo.id` outside int64 | `Q4` | 2026-10-14, v0.7 |
 | G24 | CSV quoting | RFC 4180 quoting, LF line endings, no trimming | 2026-10-14, v0.7 |
 | G25 | Invalid UTF-8 in a line | the whole line is `Q1`; no canonical field holds invalid UTF-8 | 2026-10-14, v0.7 |
+| G26 | Registry evidence for local files | separate `registry_evidence.csv`, not compared; no HTTP status until live ingestion | 2026-10-15, v0.8 |
 
 No open decisions remain in this document.
 
