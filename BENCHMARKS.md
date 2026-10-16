@@ -86,6 +86,9 @@ Oracle Cloud Always Free `VM.Standard.E2.1.Micro` (x86_64, 2 vCPUs reported, 498
 | Date | Result | How measured | Evidence | By |
 |---|---|---|---|---|
 | 2026-10-16 05:08 UTC | clock synchronized; offset **0.000000619 s slow** of NTP, RMS offset 0.000397 s, source 169.254.169.254 (Oracle NTP, stratum 3), root dispersion 0.000392 s | `timedatectl`; `chronyc tracking`; `chronyc sources` over SSH | `changes/2026-10-16-oracle-fetcher-vm.md` | reference |
+| 2026-10-16 05:35 UTC | fetcher (`886bdf8`), black-box, on the Mac against real GH Archive: hours `2026-10-16T02`–`04` each fetched, validated and archived in **0.494–0.638 s** (`available_at` − `attempt_at`) (9,366,997–9,809,657 bytes); archive SHA-256 = file name = fetch-log row for all 3 | `python -m pipeline.fetcher run ROOT 2026-10-16T02:00:00Z --end-hour 2026-10-16T05:00:00Z`, stopped after 150 s; `shasum -a 256` | `changes/2026-10-16-fetcher-cross-check.md` | reference |
+| 2026-10-16 05:35 UTC | GH Archive `Last-Modified` = **h + 1 h 05 m 04 s** for all 3 hours above (03:05:04, 04:05:04, 05:05:04 GMT). This is a header, not a measured `available_at`; the 14-day window measures that. | same fetch log, `last_modified` column | same | reference |
+| 2026-10-16 05:36 UTC | reference = pipeline on R1–R7 for those 3 fetched hours, using the fetcher's exported manifest and cutoffs `05:35:59Z` and `06:00:00Z` | `compare_outputs.py dirs` PASS | same | reference |
 | 2026-10-16 05:08 UTC | `data.gharchive.org` reachable from the VM: `HTTP/2 200`, `content-length: 6461705` for `2026-10-15-0.json.gz` | `curl -sI` | same | reference |
 
 ## Estimates (not measurements)

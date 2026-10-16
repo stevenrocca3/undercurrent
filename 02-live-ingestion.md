@@ -1,8 +1,8 @@
 # 02 — Live Ingestion
 
-**Status:** Approved v0.5 · 2026-10-16
+**Status:** Approved v0.6 · 2026-10-16
 **Owner:** Steven (approves all changes)
-**Depends on:** `01-event-semantics.md` v0.12. Everything in 01 still holds. This document only adds what changes when files are downloaded as they are published, instead of read from a finished archive.
+**Depends on:** `01-event-semantics.md` v0.13. Everything in 01 still holds. This document only adds what changes when files are downloaded as they are published, instead of read from a finished archive.
 
 > Agents: same rules as 01. This document is authoritative. All decisions are recorded in §12; changes go through 01 §10 change control.
 
@@ -43,7 +43,7 @@ Live ingestion has two jobs:
 - **Poll interval.** While an hour's file is not yet available (HTTP 404), it is retried every **`P = 5` minutes** (L1).
   - The interval bounds how precise the measurement can be: an observed `available_at` is late by up to `P`, never early. So the measured delay is conservative.
   - At `P = 5`, a pending hour costs 12 requests per hour.
-- **Giving up.** An hour still not available **`D = 24` hours** after its due time becomes `missing` in the registry (L2). The fetcher keeps trying once an hour for 7 days after that, so a late file is still archived and logged.
+- **Giving up.** An hour still not available **`D = 24` hours** after its due time becomes `missing` in the registry (L2), unless an incomplete version was found (§4). This holds even when the fetcher was down and never tried the hour before `D` (G34). The fetcher keeps trying once an hour for 7 days after that, so a late file is still archived and logged.
   - A file found after `D` is archived and logged, but the hour stays `missing` for live runs.
   - Picking such a file up later is a backfill, under the backfill `available_at` rule. It is never a silent status change.
 - **Politeness.**
@@ -69,10 +69,10 @@ An attempt **succeeds** only when all of these hold:
 **A decodable but `truncated` or `unreadable` file is not a success.**
 - It is archived under its SHA-256 and logged with its status.
 - Polling continues, because the source may still be mid-upload.
-- If the deadline `D` passes with only truncated versions, the **last** truncated version is ingested as `truncated`, as in 01 §1, with `available_at` set to the moment the deadline passed.
-- This matches backfill behaviour, where a truncated file is used (L3).
+- If the deadline `D` passes with only incomplete versions, the **last** one is ingested with its 01 §1 status (`truncated` or `unreadable`), with `available_at` set to the moment the deadline passed.
+- This matches backfill behaviour, where whatever file exists is used (L3, G34).
 
-**Clock.** The fetcher's clock must be NTP-synchronised. The fetch log records the clock source and the offset reported at fetcher start, and every 24 h after that.
+**Clock.** The fetcher's clock must be NTP-synchronised. The clock log (§5.4) records the clock source and the offset reported at fetcher start, and every 24 h after that.
 
 ---
 
@@ -86,11 +86,25 @@ An attempt **succeeds** only when all of these hold:
 
 Append-only CSV or table, one row per attempt:
 
-`source_file_hour, attempt_at, http_status, bytes, sha256, last_modified, etag, decode_status, outcome, error`
+`source_file_hour, attempt_at, http_status, bytes, sha256, last_modified, etag, decode_status, outcome, error, available_at`
 
 - `attempt_at` is the UTC time the request was sent.
 - `decode_status` is the 01 §1 status, empty unless HTTP 200.
-- `outcome` is one of `pending` (404 before `D`), `success`, `incomplete` (200 but truncated or unreadable), `error` (network, 429, 5xx), or `late` (found after `D`).
+- `available_at` is filled on `success` rows and on `deadline` rows that used a version; empty otherwise.
+- `outcome` is one of:
+  - `pending`: 404, before or after `D`
+  - `success`
+  - `incomplete`: 200 but truncated or unreadable
+  - `error`: network, 429, 5xx
+  - `late`: a complete file found after `D`; archived, never ingested live
+  - `deadline`: written when `D` passes without a success. No request is made, and `attempt_at` is the deadline. The row carries the last incomplete version's `sha256`, `bytes` and `decode_status`, or leaves them empty when there was none, in which case the hour is `missing`.
+  - `republished`: the +24 h recheck found new content (§6)
+  - `unchanged`: the recheck got 304 or the same SHA-256
+- **An hour's final outcome** is its `success` or `deadline` row; exactly one exists per tracked hour (§8.4). (G34)
+
+### 5.4 Clock log
+
+`clock.csv`, append-only: `checked_at, source, offset_seconds, error`. One row at fetcher start and every 24 h after. `offset_seconds` is signed (positive means the local clock is ahead) and empty when the offset could not be read, with the reason in `error`. The delay report (§7) gives these offsets. (G34)
 
 ### 5.3 Registry evidence (change to 01 §1)
 
@@ -101,6 +115,7 @@ Live runs add `http_status` and `available_at` columns to `registry_evidence.csv
 ## 6. Ingesting into the pipeline
 
 - **Same code path as replay.** Live ingestion is the existing replay mode (01 §4), fed hour by hour as files succeed, with each hour's observed `available_at`. No second ingestion path is written.
+- **Which file per hour.** The fetch log's final outcome (§5.2) decides: the `success` file, the `deadline` version, or none (`missing`). `late` and `republished` files are archived but never ingested, so replay takes its hours from the fetch log or manifest, never from a listing of the archive (G34).
 - **Order.** Hours are ingested in `source_file_hour` order. If hour `h` is pending while `h+1` has already succeeded, `h+1` waits until `h` succeeds or reaches `D`. This keeps live identical to replay.
   - The cost: one slow hour delays the next ones by up to `D`.
   - Strict order is decided (L5). Ingesting out of order would need a proof that deduplication's "smallest `(source_file_hour, source_line)`" result does not depend on arrival order; revisit only if measured delays make strict order hurt.
@@ -166,7 +181,7 @@ Gate 2 passes only if **all** of the following hold over one window of at least 
 5. `evidence/delay-report.json` exists (§7), along with a proposed `L`.
 6. `evidence/gate2.json` exists, generated by CI only, with the same fields as `gate1.json` plus the fetch log's SHA-256 and the manifest.
 
-Gate 2 does not require the fetcher to have been running the whole time. Downtime shows up as late `available_at` values and is reported in the delay report. It is not hidden.
+Gate 2 does not require the fetcher to have been running the whole time. Downtime shorter than `D` shows up as late `available_at` values; downtime past `D` makes the hour `missing` (§3). Both are reported in the delay report, never hidden.
 
 ---
 
@@ -206,6 +221,7 @@ Option A was first planned on Google Cloud (`e2-micro`), but Google's billing co
 | L7 | measurement window | 14 days (recommended 28) | 2026-10-15, v0.2 |
 | L8 | fetcher host | always-free cloud VM, $1 budget alert; Oracle Cloud Always Free (was GCP `e2-micro`) | 2026-10-15, v0.2; provider 2026-10-16, v0.5 |
 | — | manifest format; unlisted hours; fixture file | §8: CSV `source_file_hour,available_at`, offset required, µs precision; unlisted hours are backfill; fixtures use `available_at.csv` | 2026-10-15, v0.3 |
+| G34 | fetch-log rows | §5.2 adds an `available_at` column and outcomes `deadline`, `republished` and `unchanged`, and `pending` covers any 404; §5.4 adds a separate `clock.csv`; the last incomplete version is used at `D` whatever its status; downtime past `D` means `missing`; the fetch log, not the archive, decides which file is ingested | 2026-10-16, v0.6 |
 | G33 | manifest validation | strict 01 §2 `Q3` instant form, any offset; a repeated hour, bad header or bad value is an error; out-of-range hours ignored; an early `available_at` used as given | 2026-10-15, v0.4 |
 
 No open decisions remain in this document.
