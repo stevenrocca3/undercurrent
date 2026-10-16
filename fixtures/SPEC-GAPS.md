@@ -170,7 +170,8 @@ These are places where `01-event-semantics.md` v0.2 was silent or ambiguous, so 
 - **Decision:** the provisional rule, now in 02 §7.
 - **Depends:** `tools/test_delay_report.py`.
 
-## G36. Gate 2 R5 cutoffs (02 §9): OPEN 2026-10-16
+## G36. Gate 2 R5 cutoffs (02 §9): DECIDED 2026-10-16 (owner, spec 02 v0.8)
 - **Gap:** criterion 3 needs pipeline = reference on R1–R7, but 02 doesn't name R5's cutoffs for the live window. 01 §8 fixes Gate 1's: daily 00:00Z, chosen so every 7-day window lies inside the month.
 - **Provisional (reference author, `tools/gate2_config.json`):** the same rule on the live window. Daily at 06:00Z, 2026-10-23 → 2026-10-30 (8 cutoffs), so every `[t − 7d, t)` lies inside hours 2026-10-16T06Z..2026-10-30T05Z. The live run (`pipeline live --cutoff`) must use the same list.
+- **Decision:** the provisional rule, now in 02 §9 criterion 3.
 - **Depends:** `tools/gate2.sh`.
