@@ -39,6 +39,7 @@ A note's own **Status** line records the moment it was written (often "not pushe
 | 2026-10-15-gate1-evidence-and-reconciliation | Gate 1 tooling: CI evidence run, BigQuery reconciliation; pipeline digest fix verified on the month | #20 |
 | 2026-10-15-gate1-caffeinate | Gate 1 workflow: no idle sleep during the run (first run lost the runner) | #21 |
 | 2026-10-15-gate1-pass | **Gate 1 passes**: CI evidence run 38821187454, all 6 criteria | #22 |
-| 2026-10-15-readme-refresh | README: what the project is, how it is verified, Gate 1 result, how to run | — |
+| 2026-10-15-readme-refresh | README: what the project is, how it is verified, Gate 1 result, how to run | #23 |
+| 2026-10-15-spec-02-live-ingestion-draft | spec 02 draft: live ingestion, delay measurement, Gate 2 | — |
 
 Pipeline notes (`2026-10-15-pipeline-*`) live on the `pipeline` branch until it merges.
