@@ -1,8 +1,9 @@
-# Synthetic fixtures F1-F27
+# Synthetic fixtures F1-F32
 
-These fixtures implement `01-event-semantics.md` v0.2, §7 (F01-F13), plus F14-F17, which cover the quarantine and registry rules decided on 2026-10-14, and F18-F27, which cover the rules decided in spec v0.4-v0.6 (see `SPEC-GAPS.md`). The verifier agent wrote them, and Steven hand-checks them. **Expected outputs are hand-authored from the reasoning in each fixture's README. No code computes them.** `generate_inputs.py` only writes the `input/*.json.gz` files, from literal strings. Special byte-level cases are handled via dedicated helpers.
+These fixtures implement `01-event-semantics.md` v0.2, §7 (F01-F13), plus F14-F17, which cover the quarantine and registry rules decided on 2026-10-14, and F18-F27, which cover the rules decided in spec v0.4-v0.6 (see `SPEC-GAPS.md`). The verifier agent wrote them, and Steven hand-checks them. **Expected outputs are hand-authored from the reasoning in each fixture's README. No code computes them.** `generate_inputs.py` writes `input/*.json.gz` from literal strings and live fixture manifests from literal rows. Special byte-level cases are handled via dedicated helpers.
+F28-F32 cover observed `available_at` manifests for live ingestion (02 §8.3).
 
-Every fixture except F01 is **F01 plus one anomaly** (or clean multi-hour tests). F01's hour-0 file (6 lines: B1..B6) is reused byte for byte. So check F01 first; each other fixture's expected output is F01's plus a small delta, explained in its README.
+Most fixtures F02-F27 are **F01 plus one anomaly** (or clean multi-hour tests). F01's hour-0 file (6 lines: B1..B6) is reused byte for byte. F28-F32 are compact, dedicated manifest cases. Check F01 first; the earlier fixtures' expected outputs are F01's plus a small delta, explained in each README.
 
 Assumptions the spec does not pin down are listed in `SPEC-GAPS.md`, and each fixture README points to the ones it depends on.
 
@@ -37,6 +38,11 @@ Assumptions the spec does not pin down are listed in `SPEC-GAPS.md`, and each fi
 | F25-hours-outside-requested-range | hours outside requested range ignored | registry 1 row (hour 01 present); stars in hour 0 and 2 ignored |
 | F26-flags-from-kept-occurrence | flags evaluated from kept occurrence hour | canonical 11, r3 9,2,0; future_skewed 1, late 0 |
 | F27-r5-boundary-conditions | R5 boundary conditions: t-7d, t, available_at == t | canonical 8; r5 501 = 3, 502 = 1, 503 = 0 (event_time == t excluded) |
+| F28-manifest-overrides-backfill | manifest earlier and later than backfill, microsecond precision | at 06:59:59 hour 0 is included; at 08:30 hour 1 is excluded |
+| F29-late-hour-r5-availability | R5 before, then exactly at observed availability | repo 501 excluded at 01:30; included at 02:00 |
+| F30-truncated-at-deadline | truncated hour available at its 24-hour deadline | registry truncated; Q1 1; complete stars first appear in R5 at deadline |
+| F31-republished-first-version | retained first-version file and its observed availability | first version's star is included at 07:00; re-fetch behavior is fetcher-level |
+| F32-mixed-backfill-and-live | one listed hour and one backfill hour | at 07:30 live hour included; backfill hour excluded |
 
 ## Layout
 
@@ -59,7 +65,8 @@ Regenerate inputs with `python3 fixtures/generate_inputs.py`. Output is determin
 
 - `source_file_hour` comes from the file name: `2026-09-01-2.json.gz` → `2026-09-01T02:00:00Z`.
 - `source_line` is 1-based.
-- All files are historical backfill: `available_at = source_file_hour + 1h + 6h` (L = 6h). For example, hour 0 → 07:00 the same day.
+- By default, hours use historical backfill: `available_at = source_file_hour + 1h + 6h` (L = 6h). For example, hour 0 → 07:00 the same day.
+- F28-F32 include `available_at.csv` manifests as specified in 02 §8. Unlisted hours in those fixtures use the same backfill rule.
 - `requested_hours` is an inclusive `[first, last]` pair of hour starts. The registry has exactly one row per hour in it.
 
 ## CSV conventions

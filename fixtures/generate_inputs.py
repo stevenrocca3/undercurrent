@@ -110,6 +110,16 @@ F27_STAR_AT_T_MINUS_7D = r'{"id":"27001","type":"WatchEvent","actor":{"id":205,"
 F27_STAR_AT_T = r'{"id":"27002","type":"WatchEvent","actor":{"id":206,"login":"frank"},"repo":{"id":503,"name":"acme/comet"},"payload":{"action":"started"},"public":true,"created_at":"2026-09-01T07:00:00Z"}'
 
 # --------------------------------------------------------------------------
+# F28-F32 lines (live available_at manifests)
+# --------------------------------------------------------------------------
+F28_STAR_H0 = r'{"id":"28001","type":"WatchEvent","actor":{"id":205,"login":"erin"},"repo":{"id":501,"name":"acme/rocket"},"payload":{"action":"started"},"public":true,"created_at":"2026-09-01T00:10:00Z"}'
+F28_STAR_H1 = r'{"id":"28002","type":"WatchEvent","actor":{"id":205,"login":"erin"},"repo":{"id":502,"name":"acme/zephyr"},"payload":{"action":"started"},"public":true,"created_at":"2026-09-01T01:10:00Z"}'
+F29_STAR = r'{"id":"29001","type":"WatchEvent","actor":{"id":205,"login":"erin"},"repo":{"id":501,"name":"acme/rocket"},"payload":{"action":"started"},"public":true,"created_at":"2026-09-01T00:30:00Z"}'
+F31_FIRST_VERSION = r'{"id":"31001","type":"WatchEvent","actor":{"id":205,"login":"erin"},"repo":{"id":501,"name":"acme/rocket"},"payload":{"action":"started"},"public":true,"created_at":"2026-09-01T00:30:00Z"}'
+F32_STAR_H0 = r'{"id":"32001","type":"WatchEvent","actor":{"id":205,"login":"erin"},"repo":{"id":501,"name":"acme/rocket"},"payload":{"action":"started"},"public":true,"created_at":"2026-09-01T00:20:00Z"}'
+F32_STAR_H1 = r'{"id":"32002","type":"WatchEvent","actor":{"id":205,"login":"erin"},"repo":{"id":502,"name":"acme/zephyr"},"payload":{"action":"started"},"public":true,"created_at":"2026-09-01T01:20:00Z"}'
+
+# --------------------------------------------------------------------------
 # Fixtures: {fixture_dir: {input_file_name: [line, line, ...]}}
 # --------------------------------------------------------------------------
 FIXTURES = {
@@ -363,6 +373,48 @@ FIXTURES = {
     "F27-r5-boundary-conditions": {
         "2026-09-01-0.json.gz": BASE + [F27_STAR_AT_T_MINUS_7D, F27_STAR_AT_T],
     },
+
+    "F28-manifest-overrides-backfill": {
+        "2026-09-01-0.json.gz": [F28_STAR_H0],
+        "2026-09-01-1.json.gz": [F28_STAR_H1],
+    },
+
+    "F29-late-hour-r5-availability": {
+        "2026-09-01-0.json.gz": [F29_STAR],
+    },
+
+    "F30-truncated-at-deadline": {
+        "2026-09-01-0.json.gz": ("truncated",),
+    },
+
+    "F31-republished-first-version": {
+        "2026-09-01-0.json.gz": [F31_FIRST_VERSION],
+    },
+
+    "F32-mixed-backfill-and-live": {
+        "2026-09-01-0.json.gz": [F32_STAR_H0],
+        "2026-09-01-1.json.gz": [F32_STAR_H1],
+    },
+}
+
+# Only live-ingestion fixtures have an observed availability manifest.
+AVAILABLE_AT = {
+    "F28-manifest-overrides-backfill": [
+        ("2026-09-01T00:00:00Z", "2026-09-01T06:59:58.5Z"),
+        ("2026-09-01T01:00:00Z", "2026-09-01T09:00:00.123456Z"),
+    ],
+    "F29-late-hour-r5-availability": [
+        ("2026-09-01T00:00:00Z", "2026-09-01T02:00:00Z"),
+    ],
+    "F30-truncated-at-deadline": [
+        ("2026-09-01T00:00:00Z", "2026-09-02T01:00:00Z"),
+    ],
+    "F31-republished-first-version": [
+        ("2026-09-01T00:00:00Z", "2026-09-01T07:00:00Z"),
+    ],
+    "F32-mixed-backfill-and-live": [
+        ("2026-09-01T00:00:00Z", "2026-09-01T07:00:00Z"),
+    ],
 }
 
 # F16 pieces. B5 split in two literal halves; B5_HEAD + B5_TAIL == B5.
@@ -440,6 +492,16 @@ def main():
             with open(os.path.join(input_dir, name), "wb") as f:
                 f.write(data)
             print(f"{fixture}/input/{name}: {desc}")
+        manifest = AVAILABLE_AT.get(fixture)
+        manifest_path = os.path.join(HERE, fixture, "available_at.csv")
+        if manifest is None:
+            if os.path.exists(manifest_path):
+                os.remove(manifest_path)
+        else:
+            with open(manifest_path, "w", encoding="utf-8", newline="\n") as f:
+                f.write("source_file_hour,available_at\n")
+                for source_hour, available_at in manifest:
+                    f.write(f"{source_hour},{available_at}\n")
 
 
 if __name__ == "__main__":

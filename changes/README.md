@@ -48,5 +48,7 @@ A note's own **Status** line records the moment it was written (often "not pushe
 | 2026-10-15-live-step1-cross-check | live step 1 cross-check (PASS on a real week), G33 findings, VM setup guide | #27 |
 | 2026-10-15-g33-manifest-validation | G33 decided (02 v0.4): strict manifest validation; reference tightened; black-box test of both | #29 |
 | 2026-10-15-agents-md | AGENTS.md: shared orientation for every agent; Copilot instructions cut to a pointer | — |
+| 2026-10-15-g33-manifest-validation | G33 decided (02 v0.4): strict manifest validation; reference tightened; black-box test of both | — |
+| 2026-10-15-verifier-live-fixtures | fixtures F28-F32 for 02 §8.3; requested_hours fix | — |
 
 Pipeline notes (`2026-10-15-pipeline-*`) live on the `pipeline` branch until it merges.
