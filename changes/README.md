@@ -44,6 +44,7 @@ A note's own **Status** line records the moment it was written (often "not pushe
 | 2026-10-15-spec-02-approved-v0.13 | spec 02 approved (14-day window, 24 h deadline); spec 01 v0.13 | #24 |
 | 2026-10-15-reference-available-at | reference: `--available-at` manifest | #25 |
 | 2026-10-15-live-ingestion-briefs | briefs for live ingestion (pipeline, verifier); 02 v0.3 manifest format | #25 |
-| 2026-10-15-copilot-instructions | Copilot instructions and quota-saving settings | — |
+| 2026-10-15-copilot-instructions | Copilot instructions and quota-saving settings | #26 |
+| 2026-10-15-live-step1-cross-check | live step 1 cross-check (PASS on a real week), G33 findings, VM setup guide | — |
 
 Pipeline notes (`2026-10-15-pipeline-*`) live on the `pipeline` branch until it merges.
