@@ -30,11 +30,12 @@ Never resolve a gap by looking at how the other implementation does it.
 
 | Role | Writes | Never reads | Checkout | Branch |
 |---|---|---|---|---|
-| Reference author (Claude, main session) | `reference/`, `tools/`, specs (Steven approves), `README.md`, `BENCHMARKS.md` | `pipeline/` | `~/Documents/undercurrent/undercurrent` | short topic branches |
+| Reference author and scrum master (Claude, main session) | `reference/`, `tools/`, specs (Steven approves), `briefs/`, `README.md`, `BENCHMARKS.md` | `pipeline/` | `~/Documents/undercurrent/undercurrent` | short topic branches |
 | Pipeline author (Claude, separate session) | `pipeline/` | `reference/`, `changes/*-reference-*.md` | `~/Documents/undercurrent-pipeline` (sparse-checkout hides `reference/`) | `pipeline` |
 | Verifier (Copilot) | `fixtures/` only | `pipeline/`, `reference/`, `changes/*-reference-*.md` | `~/undercurrent-verifier` | `verifier-*` |
 | Helper (any agent, no brief) | docs, notes, answers | must not carry knowledge between `pipeline/` and `reference/` | wherever Steven opens it | — |
 
+- **Report to the scrum master** (the Claude session `undercurrent-8f`, or via Steven), including spec gaps. What it may do is under Autonomy below.
 - **Work only in your own checkout and on your own branch.** Never commit into another agent's checkout.
 - If your role isn't clear, ask.
 - Shared, neutral code (`tools/`) imports neither implementation.
@@ -52,6 +53,7 @@ Never resolve a gap by looking at how the other implementation does it.
 | `reference/reference.py` | the independent check (~350-line limit, 01 §6) |
 | `tools/compare_outputs.py` | exact comparison of R1–R7 CSVs |
 | `tools/reconcile.py`, `tools/bigquery/` | reconciliation against BigQuery (01 §5.2) |
+| `tools/archive_input.py` | builds a flat input folder from a live fetcher root, using each hour's final fetch-log outcome (02 §6, §8.4) |
 | `tools/gate1.sh`, `tools/gate1_evidence.py`, `tools/gate1_config.json` | the Gate 1 run (CI only) |
 | `tools/test_*.py` | tests for the tools; `test_manifest_errors.py` runs both implementations black-box |
 | `check.sh` | every repeatable check, in one command |
