@@ -1,6 +1,6 @@
 # 02 — Live Ingestion
 
-**Status:** Approved v0.6 · 2026-10-16
+**Status:** Approved v0.7 · 2026-10-16
 **Owner:** Steven (approves all changes)
 **Depends on:** `01-event-semantics.md` v0.13. Everything in 01 still holds. This document only adds what changes when files are downloaded as they are published, instead of read from a finished archive.
 
@@ -132,13 +132,15 @@ Live runs add `http_status` and `available_at` columns to `registry_evidence.csv
 
 - **Per hour.** `delay = available_at − due time`, for every hour with outcome `success`. Hours that ended `missing` or ingested-truncated are counted separately, never folded into the distribution.
 - **Window.** At least **14 consecutive days** (336 hours) of live ingestion (L7). Each weekday appears twice.
+  - **The Gate 2 window started at hour 2026-10-16T06:00:00Z**, the fetcher's first tracked hour on the VM. Its 336th hour is 2026-10-30T05:00:00Z, due 06:00Z that day. An hour that hasn't succeeded gets its final outcome at `D`, so every hour is final by 2026-10-31T06:00:00Z at the latest.
   - With 336 samples, the p99 rests on only about 3 hours above it, so it is a thin estimate. Rounding up to the next whole hour and the `+ P` measurement error both push `L` the safe way. The report gives the max alongside the p99, so an outlier is visible.
-- **Report.** `evidence/delay-report.json` contains:
+- **Report.** `evidence/delay-report.json` (`tools/delay_report.py`) contains:
   - window start and end
   - hours tracked; succeeded; missing; ingested truncated; republished
   - delay min, p50, p90, p99, max, in seconds
   - `P`, and the clock offsets
-- **New `L`.** The observed p99 delay, rounded **up** to the next whole hour, applied through 01 §10 change control (01 §4).
+- **Percentiles** are nearest-rank: the value at rank ⌈q·n⌉ of the sorted delays, so every percentile is an observed delay (G35).
+- **New `L`.** The observed p99 delay, rounded **up** to a whole hour (`⌈p99 / 1 h⌉`; an exact whole hour stays as it is, G35), applied through 01 §10 change control (01 §4).
   - The `+ P` measurement error is already on the conservative side.
   - Changing `L` changes every backfill `available_at`, so it invalidates detector evaluations made under the old value (01 §4). Gate 1 outputs R1–R4, R6 and R7 do not depend on `L`; R5 does.
   - **Gate 1 is re-run** after `L` changes, so the evidence matches the spec.
@@ -222,6 +224,8 @@ Option A was first planned on Google Cloud (`e2-micro`), but Google's billing co
 | L8 | fetcher host | always-free cloud VM, $1 budget alert; Oracle Cloud Always Free (was GCP `e2-micro`) | 2026-10-15, v0.2; provider 2026-10-16, v0.5 |
 | — | manifest format; unlisted hours; fixture file | §8: CSV `source_file_hour,available_at`, offset required, µs precision; unlisted hours are backfill; fixtures use `available_at.csv` | 2026-10-15, v0.3 |
 | G34 | fetch-log rows | §5.2 adds an `available_at` column and outcomes `deadline`, `republished` and `unchanged`, and `pending` covers any 404; §5.4 adds a separate `clock.csv`; the last incomplete version is used at `D` whatever its status; downtime past `D` means `missing`; the fetch log, not the archive, decides which file is ingested | 2026-10-16, v0.6 |
+| G35 | delay percentiles; rounding `L` | nearest-rank; `L = ⌈p99 / 1 h⌉` | 2026-10-16, v0.7 |
+| — | Gate 2 window start | hour 2026-10-16T06:00:00Z (the VM fetcher's first tracked hour) | 2026-10-16, v0.7 |
 | G33 | manifest validation | strict 01 §2 `Q3` instant form, any offset; a repeated hour, bad header or bad value is an error; out-of-range hours ignored; an early `available_at` used as given | 2026-10-15, v0.4 |
 
 No open decisions remain in this document.

@@ -5,7 +5,7 @@
 ROOT holds `fetch_log.csv` and `clock.csv` (02 §5.2, §5.4). For every hour with
 a `success` final outcome, delay = available_at - due time (h + 1 h). Missing and
 ingested-truncated hours (`deadline` rows) are counted, never folded into the
-delay distribution. Percentiles are nearest-rank (provisional, G35). The proposed
+delay distribution. Percentiles are nearest-rank (G35). The proposed
 `L` is the p99 rounded up to a whole hour (01 §4).
 
 Standard library only; imports neither implementation.
