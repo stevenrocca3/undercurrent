@@ -4,15 +4,10 @@
     python -m pipeline.fetcher manifest ROOT OUT_CSV
 
 `run` tracks every hour from START_HOUR on and never exits. ROOT holds
-`archive/YYYY-MM-DD-H/<sha256>.json.gz` and the append-only `fetch_log.csv`.
-All state is rebuilt from the fetch log, so a restart neither loses nor
+`archive/YYYY-MM-DD-H/<sha256>.json.gz`, the append-only `fetch_log.csv`
+(§5.2, including the G34 `deadline` and `unchanged` outcomes) and `clock.csv`
+(§5.4). All state is rebuilt from those files, so a restart neither loses nor
 repeats rows. `manifest` exports the 02 §8 `available_at` manifest.
-
-Fetch-log rows the spec does not define (G34, provisional): an extra last
-column `available_at`; outcome `deadline` (no request; written when D passes
-without a success, with the last incomplete version's sha256 and status, or
-empty for missing); outcome `unchanged` for a +24 h recheck that found the
-same content; outcome `clock` rows (empty hour) for the NTP offset.
 """
 
 import argparse
@@ -41,6 +36,7 @@ CLOCK_EVERY = timedelta(hours=24)
 TIMEOUT = 300  # seconds per request
 COLUMNS = ["source_file_hour", "attempt_at", "http_status", "bytes", "sha256", "last_modified",
            "etag", "decode_status", "outcome", "error", "available_at"]
+CLOCK_COLUMNS = ["checked_at", "source", "offset_seconds", "error"]
 
 
 def retryable(status):
@@ -58,29 +54,55 @@ def csv_cell(text):
     return text
 
 
-def read_log(path):
-    """Rows of the fetch log as dicts. A final line without a newline (a crash mid-write) is cut off."""
+def read_log(path, columns=COLUMNS, repair=False):
+    """Rows of an append-only log as dicts, without a final line that lacks its newline (a crash or a
+    write in progress). repair=True, for the fetcher only, also cuts that line from the file."""
     if not path.exists():
         return []
     data = path.read_bytes()
     if data and not data.endswith(b"\n"):
         data = data[:data.rfind(b"\n") + 1]
-        with open(path, "r+b") as f:
-            f.truncate(len(data))
+        if repair:
+            with open(path, "r+b") as f:
+                f.truncate(len(data))
     rows = list(csv.reader(data.decode("utf-8").splitlines()))
-    if rows and rows[0] != COLUMNS:
+    if rows and rows[0] != columns:
         raise ValueError(f"{path}: unexpected header {rows[0]}")
-    return [dict(zip(COLUMNS, r)) for r in rows[1:]]
+    return [dict(zip(columns, r)) for r in rows[1:]]
+
+
+def append_row(path, columns, row):
+    """Append one row (writing the header first if the file is new) and fsync it."""
+    new = not path.exists()
+    with open(path, "a", encoding="utf-8", newline="") as f:
+        if new:
+            f.write(",".join(columns) + "\n")
+        f.write(",".join(csv_cell(str(row.get(c, ""))) for c in columns) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def final_outcomes(root):
+    """{hour: its final fetch-log row}: the success or deadline row (§5.2, G34)."""
+    return {parse_timestamp(r["source_file_hour"]): r
+            for r in read_log(Path(root) / "fetch_log.csv") if r["outcome"] in ("success", "deadline")}
+
+
+def archived_file(root, row):
+    """The archived file a final row names, or None (missing)."""
+    hour = parse_timestamp(row["source_file_hour"])
+    return Path(root) / "archive" / f"{hour:%Y-%m-%d}-{hour.hour}" / f"{row['sha256']}.json.gz" if row["sha256"] else None
 
 
 def ntp_offset():
-    """(source, offset) from chrony, the VM's NTP client; 'unavailable' elsewhere."""
+    """(source, offset_seconds, error) from chrony, the VM's NTP client. Positive: the local clock is ahead."""
     try:
         out = subprocess.run(["chronyc", "tracking"], capture_output=True, text=True, timeout=10).stdout
-    except (OSError, subprocess.SubprocessError) as e:
-        return "chrony", f"unavailable: {e}"
-    fields = dict(line.split(":", 1) for line in out.splitlines() if ":" in line)
-    return "chrony " + fields.get("Reference ID", "").strip(), fields.get("System time", "unavailable").strip()
+        fields = {k.strip(): v.strip() for k, v in (line.split(":", 1) for line in out.splitlines() if ":" in line)}
+        seconds, _, direction = fields["System time"].split()[:3]  # e.g. "0.000012 seconds fast of NTP time"
+        return "chrony " + fields.get("Reference ID", ""), ("" if direction == "fast" else "-") + seconds, ""
+    except (OSError, subprocess.SubprocessError, KeyError, ValueError) as e:
+        return "chrony", "", f"{type(e).__name__}: {e}"
 
 
 class HourState:
@@ -137,6 +159,7 @@ class Fetcher:
         self.root = Path(root)
         self.archive = self.root / "archive"
         self.log_path = self.root / "fetch_log.csv"
+        self.clock_path = self.root / "clock.csv"
         self.start_hour = start_hour
         self.end_hour = end_hour  # last tracked hour; None tracks forever
         self.base_url = base_url.rstrip("/") + "/"
@@ -144,26 +167,19 @@ class Fetcher:
         self.clock_source = clock_source
         self.archive.mkdir(parents=True, exist_ok=True)
         self.hours = {}
-        self.last_clock = None
-        for row in read_log(self.log_path):
+        for row in read_log(self.log_path, repair=True):
             self.apply(row)
-        if not self.log_path.exists():
-            self.log_path.write_text(",".join(COLUMNS) + "\n", encoding="utf-8")
+        clock_rows = read_log(self.clock_path, CLOCK_COLUMNS, repair=True)
+        self.last_clock = parse_instant(clock_rows[-1]["checked_at"]) if clock_rows else None
 
     def apply(self, row):
-        if row["outcome"] == "clock":
-            self.last_clock = parse_instant(row["attempt_at"])
-            return
         hour = parse_timestamp(row["source_file_hour"])
         self.hours.setdefault(hour, HourState(hour)).apply(row)
 
     def log(self, row):
-        """Append one row and fsync it before acting on it."""
+        """Append one fetch-log row and fsync it before acting on it."""
         row = {c: str(row.get(c, "")) for c in COLUMNS}
-        with open(self.log_path, "a", encoding="utf-8", newline="") as f:
-            f.write(",".join(csv_cell(row[c]) for c in COLUMNS) + "\n")
-            f.flush()
-            os.fsync(f.fileno())
+        append_row(self.log_path, COLUMNS, row)
         self.apply(row)
 
     def state(self, hour):
@@ -196,8 +212,10 @@ class Fetcher:
         if kind == "fetch" and self.state(hour).final is None and now >= hour + HOUR + D:
             kind = "deadline"  # the fetcher was down past D: no attempt was made in time
         if kind == "clock":
-            source, offset = self.clock_source()
-            self.log({"attempt_at": format_instant(now), "outcome": "clock", "error": f"{source}; offset {offset}"})
+            source, offset, error = self.clock_source()
+            append_row(self.clock_path, CLOCK_COLUMNS,
+                       {"checked_at": format_instant(now), "source": source, "offset_seconds": offset, "error": error})
+            self.last_clock = now
         elif kind == "deadline":
             self.record_deadline(hour)
         else:
@@ -251,8 +269,7 @@ class Fetcher:
             tmp.unlink()  # identical content already archived; never rewrite it
         else:
             os.replace(tmp, final)
-        read = HourRead(final.parent, hour)
-        read.path = final
+        read = HourRead(None, hour, path=final)
         for _ in read.lines():
             pass
         row.update(decode_status=read.status, error=read.error)
@@ -295,14 +312,11 @@ class Fetcher:
 
 def export_manifest(root, out):
     """02 §8 manifest: every hour with a success, or a deadline row that used an incomplete version."""
-    rows = []
-    for row in read_log(Path(root) / "fetch_log.csv"):
-        if row["outcome"] in ("success", "deadline") and row["available_at"]:
-            rows.append((row["source_file_hour"], row["available_at"]))
     with open(out, "w", encoding="utf-8", newline="") as f:
         f.write("source_file_hour,available_at\n")
-        for hour, at in sorted(rows):
-            f.write(f"{hour},{at}\n")
+        for hour, row in sorted(final_outcomes(root).items()):
+            if row["available_at"]:
+                f.write(f"{row['source_file_hour']},{row['available_at']}\n")
 
 
 def main(argv=None):

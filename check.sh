@@ -21,4 +21,4 @@ trap 'rm -rf "$out"' EXIT
 "$PY" -m unittest pipeline/test_ingest.py pipeline/test_canon.py pipeline/test_dedup.py pipeline/test_replay.py pipeline/test_available_at.py
 "$PY" -m pipeline fixtures fixtures "$out/pipeline"
 "$PY" tools/compare_outputs.py fixtures fixtures "$out/pipeline"
-"$PY" -m unittest pipeline/test_fetcher.py
+"$PY" -m unittest pipeline/test_fetcher.py pipeline/test_live.py
