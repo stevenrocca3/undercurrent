@@ -59,11 +59,10 @@ def fmt_ts(us):
 
 
 def parse_ts(s):
-    """An ISO-8601 instant with an offset (e.g. 2026-10-16T01:03:12.5Z), as UTC."""
-    dt = datetime.fromisoformat(s)
-    if dt.tzinfo is None:
-        raise ValueError(f"available_at without a UTC offset: {s}")
-    return dt.astimezone(timezone.utc)
+    """An instant in the §2 Q3 form (offset required, 1-6 fractional digits), as UTC (02 §8, G33)."""
+    if not RFC3339.fullmatch(s):
+        raise ValueError(f"available_at not in the Q3 instant form: {s!r}")
+    return datetime.fromisoformat(s).astimezone(timezone.utc)
 
 
 def read_manifest(path):
@@ -71,8 +70,10 @@ def read_manifest(path):
     if path is None:
         return {}
     with open(path, newline="", encoding="utf-8") as f:
-        return {to_us(parse_hour(r["source_file_hour"])): to_us(parse_ts(r["available_at"]))
-                for r in csv.DictReader(f)}
+        rows = list(csv.reader(f))
+    if rows[:1] != [["source_file_hour", "available_at"]] or len({r[0] for r in rows}) != len(rows):
+        raise ValueError("available_at manifest: bad header or an hour listed twice (G33)")
+    return {to_us(parse_hour(h)): to_us(parse_ts(a)) for h, a in rows[1:]}
 
 
 def hour_file_name(dt):

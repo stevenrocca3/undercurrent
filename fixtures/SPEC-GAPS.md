@@ -151,7 +151,7 @@ These are places where `01-event-semantics.md` v0.2 was silent or ambiguous, so 
 - **Decision:** option (a). Gate 1 runs store `payload_raw` as null. The payload stays recoverable via `source_file_hour` + `source_line`, the manifest SHA-256 (§8) and `record_hash` (§2, v0.12).
 - **Depends:** none (no fixture is affected).
 
-## G33. `available_at` manifest validation (02 §8): OPEN 2026-10-15 (pipeline)
-- **Gap:** 02 §8 only says a value without an offset is an error. It doesn't cover: a repeated hour; more than 6 fractional digits; a non-`Z` offset; a bad header; listed hours outside the requested range; an `available_at` earlier than `source_file_hour + 1h`.
-- **Provisional (pipeline):** a repeated hour, a bad header, or a value that isn't the §2 Q3 instant form (offset required, 1–6 fractional digits) is an error, and the run stops. Any offset is accepted and converted to UTC. Listed hours outside the requested range are ignored. An early `available_at` is used as given.
-- **Depends:** none yet (verifier fixtures pending, 02 §8.3).
+## G33. `available_at` manifest validation (02 §8): DECIDED 2026-10-15 (owner, spec 02 v0.4)
+- **Gap:** 02 §8 only said a value without an offset is an error. It didn't cover: a repeated hour; more than 6 fractional digits; a non-`Z` offset; a bad header; listed hours outside the requested range; an `available_at` earlier than `source_file_hour + 1h`.
+- **Decision:** as the pipeline proposed. A repeated hour, a bad header, or a value that isn't the 01 §2 Q3 instant form (offset required, 1–6 fractional digits) is an error, and the run stops. Any offset is accepted and converted to UTC. Listed hours outside the requested range are ignored. An early `available_at` is used as given. (Raised by the pipeline. A black-box probe found the reference accepting 7-digit fractions, repeated hours, a space separator and the compact form; it was tightened to match.)
+- **Depends:** `tools/test_manifest_errors.py` runs both implementations black-box on every case.
