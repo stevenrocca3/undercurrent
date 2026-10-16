@@ -18,4 +18,9 @@
 
 **Open:**
 - ~~Idle reclaim (guide step 7)~~ **Decided 2026-10-16:** Steven upgraded to Pay As You Go, so idle reclaim no longer applies. The budget is $1 a month, with an email alert at 50% ($0.50). The bill still has to be checked after 48 h (guide step 8).
-- **Clock offset:** to be recorded from guide step 5 once the VM exists (02 §4).
+- **The VM (built 2026-10-16):**
+  - Setup: `VM.Standard.E2.1.Micro` in us-ashburn-1 AD-1 (A1 was out of capacity), Oracle Linux 9.8, user `opc`, 498 MiB RAM, 30 GB root.
+  - Clock: synchronized to Oracle NTP, offset 0.000000619 s (recorded in `BENCHMARKS.md`).
+  - **Incident:** my `dnf check-update` ran it out of memory, and SSH timed out until Steven rebooted it from the console. `dnf-makecache.timer` is now disabled so this can't recur during the window.
+  - **Trade-off:** security updates are now manual and must happen outside the window.
+- **Python on the VM:** 3.9.25 (OL9 default). Whether the fetcher needs a newer one, and how to install it on this little memory, is the pipeline agent's call at step 4.

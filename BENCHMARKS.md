@@ -78,6 +78,15 @@ Default machine: Apple M2, 8 cores, 8 GB RAM, macOS 14.6.1, Python 3.13.7, DuckD
 | 2026-10-15 | pipeline replay (`01403c0`), in CI | same month, idle | 1,343 s (22.4 min) | — | — | same | reference (ran it) |
 | 2026-10-15 | whole Gate 1 run in CI (fixtures, both implementations, replay, BigQuery, reconciliation, evidence) | same month, idle | 3,284 s (54.7 min) | — | — | same | reference (ran it) |
 
+## Fetcher host (measured)
+
+Oracle Cloud Always Free `VM.Standard.E2.1.Micro` (x86_64, 2 vCPUs reported, 498 MiB RAM, 30 GB root), Oracle Linux 9.8, region US East (Ashburn), at `150.136.138.5`. Freshly created; nothing else running.
+
+| Date | Result | How measured | Evidence | By |
+|---|---|---|---|---|
+| 2026-10-16 05:08 UTC | clock synchronized; offset **0.000000619 s slow** of NTP, RMS offset 0.000397 s, source 169.254.169.254 (Oracle NTP, stratum 3), root dispersion 0.000392 s | `timedatectl`; `chronyc tracking`; `chronyc sources` over SSH | `changes/2026-10-16-oracle-fetcher-vm.md` | reference |
+| 2026-10-16 05:08 UTC | `data.gharchive.org` reachable from the VM: `HTTP/2 200`, `content-length: 6461705` for `2026-10-15-0.json.gz` | `curl -sI` | same | reference |
+
 ## Estimates (not measurements)
 
 | Date | Estimate | Arithmetic | By |
