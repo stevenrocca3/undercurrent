@@ -6,11 +6,14 @@ pipeline codebase. Python does per-line parsing and quarantine (§2) and the
 missing-hour registry (§1); DuckDB does dedup and aggregation (§3, §4, §6),
 because a month of event_ids does not fit in memory as a Python set.
 
-    python reference/reference.py run INPUT_DIR FIRST_HOUR LAST_HOUR OUT_DIR [--cutoff T ...]
+    python reference/reference.py run INPUT_DIR FIRST_HOUR LAST_HOUR OUT_DIR [--cutoff T ...] [--available-at FILE]
         FIRST_HOUR/LAST_HOUR inclusive, e.g. 2026-09-01T00:00:00Z.
+        FILE: live available_at manifest (02-live-ingestion.md §8), CSV
+        source_file_hour,available_at; hours it does not list use the §4 backfill rule.
 
     python reference/reference.py fixtures FIXTURES_DIR OUT_ROOT
-        Runs every FIXTURES_DIR/Fxx-*/ (input/ + fixture.json) into OUT_ROOT/Fxx-*/.
+        Runs every FIXTURES_DIR/Fxx-*/ (input/ + fixture.json, plus available_at.csv
+        if present) into OUT_ROOT/Fxx-*/.
 
 Then compare with tools/compare_outputs.py.
 """
@@ -53,6 +56,23 @@ def to_us(dt):
 
 def fmt_ts(us):
     return (EPOCH + timedelta(microseconds=us)).strftime(TS_FORMAT)
+
+
+def parse_ts(s):
+    """An ISO-8601 instant with an offset (e.g. 2026-10-16T01:03:12.5Z), as UTC."""
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        raise ValueError(f"available_at without a UTC offset: {s}")
+    return dt.astimezone(timezone.utc)
+
+
+def read_manifest(path):
+    """02 §8: {source_file_hour_us: available_at_us} from an available_at manifest."""
+    if path is None:
+        return {}
+    with open(path, newline="", encoding="utf-8") as f:
+        return {to_us(parse_hour(r["source_file_hour"])): to_us(parse_ts(r["available_at"]))
+                for r in csv.DictReader(f)}
 
 
 def hour_file_name(dt):
@@ -210,26 +230,30 @@ CANON_TYPES = {"record_hash": "VARCHAR", "event_id": "VARCHAR", "event_type": "V
 CSV_COLUMNS = "{" + ", ".join(f"'{c}': '{t}'" for c, t in CANON_TYPES.items()) + "}"
 
 
-def run(input_dir, first, last, cutoffs, out_dir):
+def run(input_dir, first, last, cutoffs, out_dir, manifest=None):
     out_dir.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp())
     db = duckdb.connect(str(tmp / "reference.duckdb"))  # on disk: a month does not fit in RAM
     db.execute(f"SET temp_directory = '{tmp}'")
     db.execute("SET memory_limit = '3GB'")
-    r1, registry = load(db, input_dir, first, last, tmp)
+    r1, registry = load(db, input_dir, first, last, tmp, read_manifest(manifest))
     write_outputs(db, r1, registry, cutoffs, out_dir)
     db.close()
     shutil.rmtree(tmp)
 
 
-def load(db, input_dir, first, last, tmp):
-    """Parse every requested hour into table `canon`; return (r1 counts, registry rows)."""
+def load(db, input_dir, first, last, tmp, manifest):
+    """Parse every requested hour into table `canon`, and each hour's available_at into
+    table `hours` (§4; observed if the manifest lists it). Return (r1 counts, registry rows)."""
     db.execute(f"CREATE TABLE canon ({', '.join(f'{c} {t}' for c, t in CANON_TYPES.items())})")
+    db.execute("CREATE TABLE hours (hour_us BIGINT, avail_us BIGINT)")
     r1, registry = Counter({"Q1": 0, "Q2": 0, "Q3": 0, "Q4": 0, "canonical": 0}), []
     hour = first
     while hour <= last:
         status, lines = read_hour(input_dir / hour_file_name(hour))
         registry.append((hour.strftime(TS_FORMAT), status))
+        h = to_us(hour)
+        db.execute("INSERT INTO hours VALUES (?, ?)", [h, manifest.get(h, h + (1 + LAG_L_HOURS) * US_PER_HOUR)])
         hour_csv = tmp / "hour.csv"
         with open(hour_csv, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
@@ -271,10 +295,10 @@ def write_outputs(db, r1, registry, cutoffs, out_dir):
     for t in sorted(cutoffs):
         t_us = to_us(t)
         r5 += [(fmt_ts(t_us), repo, n) for repo, n in db.execute(
-            """SELECT repo_id, count(*) FROM kept WHERE is_star
-               AND event_us >= ? AND event_us < ? AND hour_us + ? <= ?
+            """SELECT repo_id, count(*) FROM kept JOIN hours USING (hour_us) WHERE is_star
+               AND event_us >= ? AND event_us < ? AND avail_us <= ?
                GROUP BY ALL ORDER BY ALL""",
-            [t_us - 7 * 24 * US_PER_HOUR, t_us, (1 + LAG_L_HOURS) * US_PER_HOUR, t_us]).fetchall()]
+            [t_us - 7 * 24 * US_PER_HOUR, t_us, t_us]).fetchall()]
     write_csv(out_dir / "r5.csv", ["cutoff", "repo_id", "star_events"], r5)
 
     write_csv(out_dir / "registry.csv", ["source_file_hour", "status"], registry)
@@ -300,14 +324,17 @@ def run_fixtures(fixtures_dir, out_root):
     for fx in sorted(p for p in fixtures_dir.iterdir() if (p / "fixture.json").exists()):
         spec = json.loads((fx / "fixture.json").read_text())
         first, last = (parse_hour(h) for h in spec["requested_hours"])
-        run(fx / "input", first, last, [parse_hour(c) for c in spec["cutoffs"]], out_root / fx.name)
+        manifest = fx / "available_at.csv"
+        run(fx / "input", first, last, [parse_hour(c) for c in spec["cutoffs"]], out_root / fx.name,
+            manifest if manifest.exists() else None)
         print(f"ran {fx.name}")
 
 
 def main(argv):
     if len(argv) >= 6 and argv[1] == "run":
         cutoffs = [parse_hour(argv[i + 1]) for i, a in enumerate(argv) if a == "--cutoff"]
-        run(Path(argv[2]), parse_hour(argv[3]), parse_hour(argv[4]), cutoffs, Path(argv[5]))
+        manifest = next((Path(argv[i + 1]) for i, a in enumerate(argv) if a == "--available-at"), None)
+        run(Path(argv[2]), parse_hour(argv[3]), parse_hour(argv[4]), cutoffs, Path(argv[5]), manifest)
     elif len(argv) == 4 and argv[1] == "fixtures":
         run_fixtures(Path(argv[2]), Path(argv[3]))
     else:

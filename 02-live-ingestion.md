@@ -1,6 +1,6 @@
 # 02 — Live Ingestion
 
-**Status:** Approved v0.2 · 2026-10-15
+**Status:** Approved v0.3 · 2026-10-15
 **Owner:** Steven (approves all changes)
 **Depends on:** `01-event-semantics.md` v0.12. Everything in 01 still holds. This document only adds what changes when files are downloaded as they are published, instead of read from a finished archive.
 
@@ -134,6 +134,12 @@ Live runs add `http_status` and `available_at` columns to `registry_evidence.csv
 
 Live data cannot be verified by re-reading a finished archive alone, because `available_at` was observed, not computed. Verification therefore keeps the two-author design from 01 §6, with one addition: a per-hour **`available_at` manifest** (`source_file_hour, available_at`), exported from the fetch log. It is the only live-specific input.
 
+**Manifest format.** A CSV with header `source_file_hour,available_at` and one row per hour.
+- `source_file_hour` uses the 01 §6 timestamp format.
+- `available_at` is ISO-8601 with an explicit UTC offset and up to microsecond precision, e.g. `2026-10-16T01:03:12.5Z`. A value without an offset is an error.
+- Hours the manifest does not list use the 01 §4 backfill rule; these are hours before `h0`.
+- In fixtures, the manifest is the file `available_at.csv` next to `fixture.json`. When it is absent, every hour is backfill.
+
 1. **Live = replay.** Replaying the archived files in order, with the manifest's `available_at`, produces canonical tables byte-identical to the live tables (01 §4 rule, same excluded fields).
 2. **Pipeline = reference.** The reference calculation, given the archived files and the manifest, produces R1–R7 exactly equal to the live pipeline's.
    - The reference gains an `--available-at FILE` option; the pipeline gains the equivalent.
@@ -197,5 +203,6 @@ Option A needs a billing account on the Google Cloud project; the BigQuery sandb
 | L6 | republication recheck | once, at `available_at` + 24 h | 2026-10-15, v0.2 |
 | L7 | measurement window | 14 days (recommended 28) | 2026-10-15, v0.2 |
 | L8 | fetcher host | always-free cloud VM (e.g. GCP `e2-micro`), $1 budget alert | 2026-10-15, v0.2 |
+| — | manifest format; unlisted hours; fixture file | §8: CSV `source_file_hour,available_at`, offset required, µs precision; unlisted hours are backfill; fixtures use `available_at.csv` | 2026-10-15, v0.3 (pending approval in PR) |
 
 No open decisions remain in this document.
