@@ -1,6 +1,6 @@
 # 03 — Signals, Target and Backtest
 
-**Status:** Draft v0.3 · 2026-10-16 (not approved). v0.1 drafted by the pipeline agent; v0.2 review edits and v0.3 (S14) by the scrum master.
+**Status:** Draft v0.4 · 2026-10-16 (not approved). v0.1 drafted by the pipeline agent; v0.2 review edits, v0.3 (S14) and v0.4 (backfill to 2026-11-01) by the scrum master.
 **Owner:** Steven (approves all changes)
 **Depends on:** `01-event-semantics.md` v0.13 (canonical events, point-in-time rule) and `02-live-ingestion.md` v0.8 (`available_at`, `L`). Everything in 01 and 02 still holds. This document defines what is computed **from** canonical events: the prediction target, the signals, the noise filters, and how the signals are judged against history.
 
@@ -146,8 +146,15 @@ Every feature is computed as of `t` under the point-in-time rule, per `repo_id`,
 
 One cutoff needs data from `t − H` (newness) to `t_L` (label), so 90 + 30 days plus 7 h. Gate 1 processed one month (September 2026), which is **not enough for a single cutoff**. V1 needs a backfill (S10):
 
-- **Proposed:** 2026-03-01 → 2026-10-01 (7 months), processed by the pipeline in batch mode with the 01 §4 historical `available_at` rule. The first cutoff with a full `H` is 2026-05-30, and the last with a label frozen by 2026-10-01 is 2026-08-31 17:00Z. The weekly Monday cutoffs are 2026-06-01 → 2026-08-31.
-- **Disk: the activity table is the plan.** Canonical tables run about 4.3 GB per month (BENCHMARKS). Seven months would be about 30 GB, against 27 GB free on 2026-10-16, and the live copy is growing.
+- **Range: 2026-03-01 → 2026-11-01 (8 months)**, processed by the pipeline in batch mode.
+  - **`available_at`:** hours from 2026-10-16T06Z are inside the Gate 2 window and take their observed value from the Gate 2 manifest (02 §8). Every other hour uses the 01 §4 historical rule.
+  - **Cutoffs:** the first cutoff with a full `H` is 2026-05-30. The weekly Monday cutoffs stay **2026-06-01 → 2026-08-31** (pre-registered, §6.5).
+  - **Why to 2026-11-01:** every cutoff, including the last, then has its S14 retention window frozen inside the data. For 2026-08-31, `t_R` = 2026-10-30T07Z. The extra month changes no label or cutoff; it only lets §4.4 report on all test cutoffs.
+  - **Earliest start:** after the last October hour is published (about 2026-11-01T01Z) **and** the new `L` is approved (see Timing below).
+- **Disk: one month at a time.** Raw input is about 19 GB per month and canonical tables about 4.3 GB (BENCHMARKS). Eight months would be about 150 GB raw and 34 GB canonical, against 27 GB free on 2026-10-16. So each month is downloaded, processed and reduced, and only then is its raw input deleted.
+  - The SHA-256 manifest of every raw file is kept, as in 01 G32, so any file can be re-downloaded and proven identical.
+  - Deleting the raw input is Steven's call at run time.
+- **The activity table is the plan.**
   - Each month is reduced to an **activity table** with one row per `(source_file_hour, available_at, repo_id, actor_id, event_type, payload_action)`, plus a `n_events` count. Then that month's `canon.duckdb` is dropped.
   - It keeps the hour and `available_at`, so the point-in-time rule still applies exactly, and actor identity, so distinct counts still work.
   - Two side tables carry the rest: per actor, whether a login ends in `[bot]` (§4.1); per repo, the latest `repo_name` with its `available_at` (§8).
@@ -156,7 +163,7 @@ One cutoff needs data from `t − H` (newness) to `t_L` (label), so 90 + 30 days
 
 ### 7.2 Protocol
 
-- **Cutoffs.** Weekly, Monday 00:00Z, over the range above (14 cutoffs for the proposed backfill). Successive label windows overlap, so cutoffs are not independent. Headline numbers are means over cutoffs, reported with the per-cutoff minimum and maximum.
+- **Cutoffs.** Weekly, Monday 00:00Z, over the range above (14 cutoffs). Successive label windows overlap, so cutoffs are not independent. Headline numbers are means over cutoffs, reported with the per-cutoff minimum and maximum.
 - **Walk-forward.** Cutoffs are scored in time order under the §6.4 embargo. The first 4 scoreable cutoffs train only and are never reported as test results.
 - **Models.**
   - `B0` random order: expected Precision@K = base rate.
@@ -222,7 +229,7 @@ All provisional until Steven approves v1.0.
 | S7 | bots | `[bot]` login suffix, or > 100 repos and > 1,000 events in 30 d |
 | S8 | single-author repos | excluded from `C(t)`; the filter's loss of positives reported every run |
 | S9 | star bursts | hour with ≥ 50 stars and ≥ 50% of the repo's 30 d stars; its stars removed from star features only |
-| S10 | backfill | 2026-03-01 → 2026-10-01, batch mode, historical `available_at`, reduced to the activity table month by month; run only after Gate 2's `L` is approved (§7.1) |
+| S10 | backfill | 2026-03-01 → 2026-11-01 (extended by Steven 2026-10-16, for S14 on every test cutoff), batch mode; historical `available_at`, observed from the Gate 2 manifest for hours from 2026-10-16T06Z; raw input processed and deleted one month at a time; reduced to the activity table month by month; run only after Gate 2's `L` is approved (§7.1) |
 | S11 | V1 pass bar | §7.3: against `B*` = the stronger of `B1` and `B3`: Precision@100 ≥ 1.5× `B*`, wins on ≥ 75% of cutoffs, AUROC > `B*`. **Agreed by Steven 2026-10-16** |
 | S12 | independent implementations for `features.csv` and `labels.csv` | yes, as in 01 §6 |
 | S13 | star counting | distinct non-bot stargazers per window, not gross star events |
