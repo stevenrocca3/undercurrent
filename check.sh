@@ -15,7 +15,7 @@ fi
 out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
 
-"$PY" -m unittest tools/test_compare_outputs.py tools/test_reconcile.py tools/test_gate1_evidence.py tools/test_manifest_errors.py tools/test_archive_input.py tools/test_delay_report.py
+"$PY" -m unittest tools/test_compare_outputs.py tools/test_reconcile.py tools/test_gate1_evidence.py tools/test_manifest_errors.py tools/test_archive_input.py tools/test_delay_report.py tools/test_fetch_log_check.py tools/test_gate2_evidence.py
 "$PY" reference/reference.py fixtures fixtures "$out"
 "$PY" tools/compare_outputs.py fixtures fixtures "$out"
 "$PY" -m unittest pipeline/test_ingest.py pipeline/test_canon.py pipeline/test_dedup.py pipeline/test_replay.py pipeline/test_available_at.py
