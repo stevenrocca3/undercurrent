@@ -47,6 +47,11 @@ def format_timestamp(dt):
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def format_instant(dt):
+    """format_timestamp, plus .ffffff when there is a fraction (02 §8 available_at)."""
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ" if dt.microsecond else "%Y-%m-%dT%H:%M:%SZ")
+
+
 def inflate(f, chunk_size=CHUNK_SIZE):
     """Yield the decompressed bytes of a (possibly multi-member) gzip file.
 
