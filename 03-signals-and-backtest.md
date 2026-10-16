@@ -1,10 +1,10 @@
 # 03 — Signals, Target and Backtest
 
-**Status:** Draft v0.4 · 2026-10-16 (not approved). v0.1 drafted by the pipeline agent; v0.2 review edits, v0.3 (S14) and v0.4 (backfill to 2026-11-01) by the scrum master.
+**Status:** Draft v0.5 · 2026-10-16 (not approved). v0.1 drafted by the pipeline agent; v0.2 review edits, v0.3 (S14), v0.4 (backfill to 2026-11-01) and v0.5 (G37, G38) by the scrum master.
 **Owner:** Steven (approves all changes)
 **Depends on:** `01-event-semantics.md` v0.13 (canonical events, point-in-time rule) and `02-live-ingestion.md` v0.8 (`available_at`, `L`). Everything in 01 and 02 still holds. This document defines what is computed **from** canonical events: the prediction target, the signals, the noise filters, and how the signals are judged against history.
 
-> Agents: same rules as 01. Once approved, this document is authoritative. Decisions are recorded in §9 (S1–S14); while the status is Draft, every S row is provisional. Changes go through 01 §10 change control.
+> Agents: same rules as 01. Once approved, this document is authoritative. Decisions are recorded in §9 (S1–S15); while the status is Draft, every S row is provisional. Changes go through 01 §10 change control.
 
 ---
 
@@ -109,16 +109,16 @@ A hackathon, course or one-off event repo can gain many new contributors in a fe
 
 ## 5. Signals (features)
 
-Every feature is computed as of `t` under the point-in-time rule, per `repo_id`, after the bot filter. A window `[t − d, t)` includes `t − d` (01 §4). "7d" and "30d" mean `[t − 7d, t)` and `[t − 30d, t)`. A ratio is null when its denominator is 0.
+Every feature is computed as of `t` under the point-in-time rule, per `repo_id`, after the bot filter. A window `[t − d, t)` includes `t − d` (01 §4). "7d" and "30d" mean `[t − 7d, t)` and `[t − 30d, t)`. A ratio is null when its denominator is 0. Each ratio is defined as an exact fraction of integers; its written form is in §8 (G37).
 
 | Feature | Definition |
 |---|---|
 | `stars_7d`, `stars_30d` | stargazers (§2), burst-only stargazers excluded (§4.3) |
-| `star_accel` | `stars_7d / (stars_30d · 7/30)` |
+| `star_accel` | `(30 · stars_7d) / (7 · stars_30d)` |
 | `burst_stargazers_30d` | stargazers whose only star events in 30d are in burst hours (§4.3) |
 | `contributors_7d`, `contributors_30d` | distinct contributors |
 | `new_contributors_30d` | contributors in 30d who were not contributors in `[t − H, t − 30d)` |
-| `contributor_accel` | `contributors_7d / (contributors_30d · 7/30)` |
+| `contributor_accel` | `(30 · contributors_7d) / (7 · contributors_30d)` |
 | `pushes_30d` | `PushEvent` count |
 | `prs_opened_30d`, `prs_closed_30d` | `PullRequestEvent` with action `opened` / `closed` |
 | `pr_close_ratio` | `prs_closed_30d / prs_opened_30d` |
@@ -194,7 +194,14 @@ Beating stars alone isn't enough. A model that loses to persistence is only find
 
 ## 8. Outputs and fixtures
 
-Output CSVs follow 01 §6's CSV rules (RFC 4180, LF line endings, sorted by key):
+Output CSVs follow 01 §6's CSV rules (RFC 4180, LF line endings, sorted by key), plus two rules of their own:
+
+- **Rows (G38).** `features.csv` and `labels.csv` have one row per cutoff and per repo in `C(t)`, including candidates with `n_new = 0`. Repos outside `C(t)`, single-author repos included (§4.2), have no row.
+- **Cells (G37).**
+  - Counts and `y` are base-10 integers.
+  - A ratio is the exact value of its §5 fraction, rounded half-to-even to 6 decimal places and always written with 6 digits (`0.000000`, `1.000000`, `1.428571`).
+  - A null is an empty cell.
+  - Implementations compute ratios exactly, from the integers, so that two correct implementations write identical bytes. Floating-point evaluation order can change the last digit.
 
 | File | Columns |
 |---|---|
@@ -234,3 +241,4 @@ All provisional until Steven approves v1.0.
 | S12 | independent implementations for `features.csv` and `labels.csv` | yes, as in 01 §6 |
 | S13 | star counting | distinct non-bot stargazers per window, not gross star events |
 | S14 | burst-and-die (hackathon-like) positives | reported, not filtered: `retained < 0.2` over `[t + 30d, t + 60d)`; if > 25% of `M1`/`M2` top-100 positives on training cutoffs, a pre-`t` filter is decided before testing (§4.4). **Added at Steven's request 2026-10-16** |
+| S15 | detector CSV cells and rows | §8: ratios are exact fractions of integers, rounded half-to-even to 6 decimals; null is empty; one row per repo in `C(t)` (G37, G38). **Decided by Steven 2026-10-16** |
