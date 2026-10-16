@@ -18,4 +18,9 @@
 - Names the main session "reference author and scrum master", with `briefs/` in its writes, so it matches the Autonomy section.
 - Points agents to report to it.
 
-**Not yet done:** a run against the VM's live fetcher root. It was blocked by a permission prompt, and it's waiting for Steven.
+**Live run (Steven approved):** I ran it on the VM's fetcher root (`/home/opc/undercurrent-data/fetcher`), into a temporary folder that was deleted after.
+- 9 `success` hours were linked, all hashes matched, and it exited 0.
+- 11 `pending` rows were ignored.
+- The archive's 9 hour folders were all linked.
+- See `BENCHMARKS.md`.
+- Don't `cut -d,` the fetch log: `Last-Modified` values contain a comma. Read it with a CSV parser.
