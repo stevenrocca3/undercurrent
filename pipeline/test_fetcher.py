@@ -6,14 +6,16 @@
 import gzip
 import hashlib
 import shutil
+import subprocess
 import tempfile
 import threading
 import unittest
+from unittest import mock
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-from pipeline.fetcher import D, P, USER_AGENT, Fetcher, export_manifest, read_log
+from pipeline.fetcher import CLOCK_COLUMNS, D, P, USER_AGENT, Fetcher, export_manifest, ntp_offset, read_log
 
 H = datetime(2026, 9, 1, 0, tzinfo=timezone.utc)
 DUE = H + timedelta(hours=1)
@@ -75,7 +77,7 @@ class TestFetcher(unittest.TestCase):
 
     def new_fetcher(self):
         return Fetcher(self.root, H, self.server.url, clock=lambda: self.now,
-                       clock_source=lambda: ("test", "+0.000001 seconds fast"), end_hour=H)
+                       clock_source=lambda: ("test", "0.000001", ""), end_hour=H)
 
     def serve(self, *responses):
         self.server.script[PATH] = list(responses)
@@ -120,9 +122,18 @@ class TestFetcher(unittest.TestCase):
 
     def test_clock_offset_logged_at_start_and_every_24h(self):
         self.run_until(DUE + timedelta(hours=25))
-        clock = [r for r in read_log(self.root / "fetch_log.csv") if r["outcome"] == "clock"]
-        self.assertEqual([r["attempt_at"] for r in clock], ["2026-09-01T01:00:00Z", "2026-09-02T01:00:00Z"])
-        self.assertEqual(clock[0]["error"], "test; offset +0.000001 seconds fast")
+        clock = read_log(self.root / "clock.csv", CLOCK_COLUMNS)
+        self.assertEqual([r["checked_at"] for r in clock], ["2026-09-01T01:00:00Z", "2026-09-02T01:00:00Z"])
+        self.assertEqual(clock[0], {"checked_at": "2026-09-01T01:00:00Z", "source": "test",
+                                    "offset_seconds": "0.000001", "error": ""})
+        self.assertNotIn("", [r["source_file_hour"] for r in read_log(self.root / "fetch_log.csv")])
+
+    def test_ntp_offset_from_chronyc(self):
+        out = "Reference ID    : A9FEA97B (169.254.169.123)\nSystem time     : 0.000012345 seconds slow of NTP time\n"
+        with mock.patch("subprocess.run", return_value=subprocess.CompletedProcess([], 0, stdout=out)):
+            self.assertEqual(ntp_offset(), ("chrony A9FEA97B (169.254.169.123)", "-0.000012345", ""))
+        with mock.patch("subprocess.run", side_effect=FileNotFoundError("chronyc")):
+            self.assertEqual(ntp_offset(), ("chrony", "", "FileNotFoundError: chronyc"))
 
     def test_truncated_then_complete(self):
         self.serve((200, TRUNCATED, {}), (200, FULL, {}))
@@ -189,8 +200,7 @@ class TestFetcher(unittest.TestCase):
         self.assertEqual((when, hour, kind), (DUE + P, H, "fetch"))  # resumes the schedule, no repeat
         self.run_until(DUE + 2 * P)
         self.assertEqual(self.outcomes(), ["pending", "pending", "success"])
-        clock = [r for r in read_log(self.root / "fetch_log.csv") if r["outcome"] == "clock"]
-        self.assertEqual(len(clock), 1)  # not repeated on restart within 24 h
+        self.assertEqual(len(read_log(self.root / "clock.csv", CLOCK_COLUMNS)), 1)  # not repeated on restart within 24 h
 
     def test_republished_at_24h_keeps_first_version(self):
         self.serve((200, FULL, {"ETag": '"v1"'}), (200, OTHER, {"ETag": '"v2"'}))

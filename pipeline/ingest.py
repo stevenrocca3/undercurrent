@@ -98,9 +98,10 @@ def inflate(f, chunk_size=CHUNK_SIZE):
 class HourRead:
     """One requested hour: its lines (via `lines()`) and, once read, its registry entry."""
 
-    def __init__(self, input_dir, hour, chunk_size=CHUNK_SIZE):
+    def __init__(self, input_dir, hour, chunk_size=CHUNK_SIZE, path=None):
+        """Reads input_dir/<GH Archive name>, or, when input_dir is None, `path` (None: missing)."""
         self.hour = hour
-        self.path = input_dir / hour_file_name(hour)
+        self.path = path if input_dir is None else input_dir / hour_file_name(hour)
         self.chunk_size = chunk_size
         self.status = None
         self.file_bytes = None
@@ -109,7 +110,7 @@ class HourRead:
 
     def lines(self):
         """Yield (source_line, raw_bytes, partial). Sets status, line_count and error when exhausted."""
-        if not self.path.is_file():
+        if self.path is None or not self.path.is_file():
             self.status = "missing"
             return
         self.file_bytes = self.path.stat().st_size

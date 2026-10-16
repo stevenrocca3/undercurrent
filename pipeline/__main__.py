@@ -2,6 +2,7 @@
 
     python -m pipeline run INPUT_DIR FIRST_HOUR LAST_HOUR OUT_DIR [--cutoff T ...] [--replay] [--available-at FILE]
     python -m pipeline fixtures FIXTURES_DIR OUT_ROOT [--replay]
+    python -m pipeline live FETCHER_ROOT FIRST_HOUR LAST_HOUR OUT_DIR [--cutoff T ...] [--poll SECONDS]
 
 Batch (default) reads hours in parallel and deduplicates once at the end.
 --replay feeds the hour files one at a time in source_file_hour order and
@@ -11,6 +12,13 @@ on the same input the two files must be identical (§8 criterion 3).
 --available-at FILE reads a 02 §8 manifest: listed hours take its available_at,
 the rest the §4 backfill value. Fixtures use available_at.csv beside fixture.json.
 
+--archive reads INPUT_DIR as a fetcher root (02 §5): each hour's file is the one
+its fetch-log final outcome names (02 §6), and http_status fills the registry
+evidence. `live` is replay on a fetcher root that waits for each hour's final
+outcome, in hour order, and takes the observed available_at (02 §6). FIRST_HOUR
+must be at or after the fetcher's start hour. Live = a replay with --archive and
+the exported manifest (02 §8.1).
+
 Hours are inclusive, e.g. 2026-09-01T00:00:00Z. Writes canon.duckdb (canon-v1,
 quarantine, and the dedup tables), the R1-R7 files r1..r5.csv, registry.csv
 and flags.csv, registry_evidence.csv and canon_digest.csv.
@@ -19,6 +27,7 @@ and flags.csv, registry_evidence.csv and canon_digest.csv.
 import argparse
 import json
 import sys
+import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timezone
@@ -27,6 +36,7 @@ from pathlib import Path
 from pipeline.canon import CanonStore, available_at, read_manifest, spool_hour, table_digests
 from pipeline.dedup import create_dedup_tables, deduplicate, r3_counts
 from pipeline.metrics import events_by_hour_and_type, flag_counts, stars_as_of, stars_by_repo_and_date
+from pipeline.fetcher import archived_file, final_outcomes, parse_instant
 from pipeline.ingest import HourRead, format_instant, format_timestamp, parse_timestamp, requested_hours
 
 
@@ -46,17 +56,39 @@ def write_csv(path, header, rows):
 R1_ROWS = ["Q1", "Q2", "Q3", "Q4", "canonical"]  # always present (§6)
 
 
-def run(input_dir, first, last, out_dir, cutoffs, replay=False, manifest=None):
+def run(input_dir, first, last, out_dir, cutoffs, replay=False, manifest=None, archive=False, live_poll=None):
     out_dir.mkdir(parents=True, exist_ok=True)
     store = CanonStore(out_dir / "canon.duckdb", datetime.now(timezone.utc))
     line_status = Counter({code: 0 for code in R1_ROWS})
     reads = []
     create_dedup_tables(store.con)
     hours = list(requested_hours(first, last))
-    available = {h: available_at(h, manifest or {}) for h in hours}
-    if replay:
+    manifest = dict(manifest or {})
+    finals = final_outcomes(input_dir) if archive else {}
+    http = {}
+
+    def hour_read(hour):
+        """The hour's HourRead; in live mode, first wait for its final outcome and take its available_at."""
+        nonlocal finals
+        if not archive:
+            return HourRead(input_dir, hour)
+        while live_poll and hour not in finals:
+            time.sleep(live_poll)
+            finals = final_outcomes(input_dir)
+        row = finals.get(hour)
+        if row is None:
+            return HourRead(None, hour)
+        http[hour] = row["http_status"]
+        if live_poll and row["available_at"]:
+            manifest[hour.replace(tzinfo=None)] = parse_instant(row["available_at"]).replace(tzinfo=None)
+        return HourRead(None, hour, path=archived_file(input_dir, row))
+
+    available = {}
+    if replay or live_poll:
         for hour in hours:  # one file at a time, in source_file_hour order
-            read, counts = spool_hour(HourRead(input_dir, hour), out_dir)
+            read = hour_read(hour)
+            available[hour] = available_at(hour, manifest)
+            read, counts = spool_hour(read, out_dir)
             line_status.update(counts)
             store.load_hour(hour, out_dir, available[hour])
             deduplicate(store.con, hour.replace(tzinfo=None))
@@ -64,7 +96,9 @@ def run(input_dir, first, last, out_dir, cutoffs, replay=False, manifest=None):
     else:
         # Hours are read and classified in parallel; results come back in hour order and are loaded one by one.
         with ProcessPoolExecutor() as pool:
-            for read, counts in pool.map(spool_hour, [HourRead(input_dir, h) for h in hours], [out_dir] * len(hours)):
+            hour_reads = [hour_read(h) for h in hours]
+            available = {h: available_at(h, manifest) for h in hours}
+            for read, counts in pool.map(spool_hour, hour_reads, [out_dir] * len(hours)):
                 line_status.update(counts)
                 store.load_hour(read.hour, out_dir, available[read.hour])
                 reads.append(read)
@@ -91,7 +125,7 @@ def run(input_dir, first, last, out_dir, cutoffs, replay=False, manifest=None):
     write_csv(out_dir / "registry_evidence.csv",
               ["source_file_hour", "status", "file_bytes", "lines", "error", "http_status", "available_at"],
               [[format_timestamp(r.hour), r.status, "" if r.file_bytes is None else r.file_bytes,
-                r.line_count, r.error, "", format_instant(available[r.hour])] for r in reads])
+                r.line_count, r.error, http.get(r.hour, ""), format_instant(available[r.hour])] for r in reads])
 
 
 def run_fixtures(fixtures_dir, out_root, replay=False):
@@ -115,14 +149,25 @@ def main(argv):
     p_run.add_argument("--cutoff", type=parse_timestamp, action="append", default=[])
     p_run.add_argument("--replay", action="store_true")
     p_run.add_argument("--available-at", type=Path)
+    p_run.add_argument("--archive", action="store_true", help="INPUT_DIR is a fetcher root (02 §5)")
     p_fx = sub.add_parser("fixtures")
     p_fx.add_argument("fixtures_dir", type=Path)
     p_fx.add_argument("out_root", type=Path)
     p_fx.add_argument("--replay", action="store_true")
+    p_live = sub.add_parser("live")
+    p_live.add_argument("fetcher_root", type=Path)
+    p_live.add_argument("first_hour", type=parse_timestamp)
+    p_live.add_argument("last_hour", type=parse_timestamp)
+    p_live.add_argument("out_dir", type=Path)
+    p_live.add_argument("--cutoff", type=parse_timestamp, action="append", default=[])
+    p_live.add_argument("--poll", type=float, default=60, help="seconds between fetch-log reads")
     args = parser.parse_args(argv)
     if args.mode == "run":
         run(args.input_dir, args.first_hour, args.last_hour, args.out_dir, args.cutoff, args.replay,
-            read_manifest(args.available_at) if args.available_at else None)
+            read_manifest(args.available_at) if args.available_at else None, args.archive)
+    elif args.mode == "live":
+        run(args.fetcher_root, args.first_hour, args.last_hour, args.out_dir, args.cutoff, archive=True,
+            live_poll=args.poll)
     else:
         run_fixtures(args.fixtures_dir, args.out_root, args.replay)
     return 0
