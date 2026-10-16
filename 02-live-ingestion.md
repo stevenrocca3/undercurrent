@@ -1,6 +1,6 @@
 # 02 — Live Ingestion
 
-**Status:** Approved v0.4 · 2026-10-15
+**Status:** Approved v0.5 · 2026-10-16
 **Owner:** Steven (approves all changes)
 **Depends on:** `01-event-semantics.md` v0.12. Everything in 01 still holds. This document only adds what changes when files are downloaded as they are published, instead of read from a finished archive.
 
@@ -176,11 +176,11 @@ The fetcher has to run without gaps for 14+ days, and `available_at` is only as 
 
 | Option | Cost | Uptime / clock | Notes |
 |---|---|---|---|
-| **A. Small always-free cloud VM** (e.g. GCP `e2-micro` in a free-tier US region) | $0 within the free-tier limits | high; NTP managed | 1 GB RAM and 30 GB disk: enough for fetching and a rolling archive (a month is about 19 GB), not for running the pipeline. The pipeline runs on the Mac from the archive. **Recommended.** |
+| **A. Small always-free cloud VM** (Oracle Cloud Always Free, `VM.Standard.A1.Flex` 1 OCPU / 6 GB) | $0 within the free-tier limits | high; NTP managed | enough for fetching and a rolling archive (a month is about 19 GB; 200 GB free), not for running the pipeline. The pipeline runs on the Mac from the archive. **Recommended.** |
 | B. This Mac, with sleep disabled | $0 | breaks when the lid closes, at reboots, or offline | fine for a trial run, not for Gate 2 evidence |
 | C. GitHub Actions `schedule` | $0 | scheduled runs can start very late or be skipped | unsuitable: the delay would measure the scheduler, not GH Archive |
 
-Option A needs a billing account on the Google Cloud project; the BigQuery sandbox project has none. Staying inside the always-free limits costs nothing, but a card must be on file, so a budget alert at $1 is part of the setup.
+Option A was first planned on Google Cloud (`e2-micro`), but Google's billing could not be set up, so it runs on Oracle Cloud (v0.5). A Free Tier account there cannot be billed unless it is upgraded to Pay As You Go; a $1 budget alert is part of the setup anyway. Oracle may stop an idle Always Free VM after 7 days; whether to upgrade before the window to avoid that is decided in `briefs/steven-fetcher-vm-setup.md` step 7.
 
 ---
 
@@ -204,7 +204,7 @@ Option A needs a billing account on the Google Cloud project; the BigQuery sandb
 | L5 | hour order | strict `source_file_hour` order | 2026-10-15, v0.2 |
 | L6 | republication recheck | once, at `available_at` + 24 h | 2026-10-15, v0.2 |
 | L7 | measurement window | 14 days (recommended 28) | 2026-10-15, v0.2 |
-| L8 | fetcher host | always-free cloud VM (e.g. GCP `e2-micro`), $1 budget alert | 2026-10-15, v0.2 |
+| L8 | fetcher host | always-free cloud VM, $1 budget alert; Oracle Cloud Always Free (was GCP `e2-micro`) | 2026-10-15, v0.2; provider 2026-10-16, v0.5 |
 | — | manifest format; unlisted hours; fixture file | §8: CSV `source_file_hour,available_at`, offset required, µs precision; unlisted hours are backfill; fixtures use `available_at.csv` | 2026-10-15, v0.3 |
 | G33 | manifest validation | strict 01 §2 `Q3` instant form, any offset; a repeated hour, bad header or bad value is an error; out-of-range hours ignored; an early `available_at` used as given | 2026-10-15, v0.4 |
 

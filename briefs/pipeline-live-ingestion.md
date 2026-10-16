@@ -6,7 +6,7 @@
 
 ## When to start
 
-Now, for steps 1–3. Step 4 needs the VM, which Steven is setting up (02 §10, L8). Steps 1–3 run on the Mac against a local test server and the September archive.
+Now, for steps 1–3. Step 4 needs the VM, an Oracle Cloud Always Free Ubuntu 24.04 VM that Steven is setting up (02 §10, L8). Steps 1–3 run on the Mac against a local test server and the September archive.
 
 ## Independence rules (unchanged, hard)
 
