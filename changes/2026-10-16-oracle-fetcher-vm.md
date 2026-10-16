@@ -17,5 +17,5 @@
 **Proof:** documentation only. `./check.sh` was not affected (no code changed).
 
 **Open:**
-- **Idle reclaim (guide step 7):** Oracle can stop a VM that's idle for 7 days. Steven decides before the 14-day window whether to upgrade to Pay As You Go to avoid it. Recommendation: upgrade, with the budget alert in place.
+- ~~Idle reclaim (guide step 7)~~ **Decided 2026-10-16:** Steven upgraded to Pay As You Go, so idle reclaim no longer applies. The budget is $1 a month, with an email alert at 50% ($0.50). The bill still has to be checked after 48 h (guide step 8).
 - **Clock offset:** to be recorded from guide step 5 once the VM exists (02 §4).
