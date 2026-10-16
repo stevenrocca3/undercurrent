@@ -1,6 +1,6 @@
 # 01 — Canonical Event Semantics and Verification Contract
 
-**Status:** Draft v0.12 · 2026-10-15
+**Status:** Draft v0.13 · 2026-10-15
 **Owner:** Steven (approves all changes)
 **Applies to:** every pipeline component, verifier, and evidence artifact
 
@@ -38,7 +38,7 @@ Readers must recover the bytes after the last `\n` of a truncated stream as a fi
 
 Files outside the requested hour range are ignored.
 
-**Registry evidence.** The pipeline writes `registry_evidence.csv` next to `registry.csv`, with columns `source_file_hour,status,file_bytes,lines,error`. `file_bytes` is empty for `missing`. `lines` is the number of lines recovered. `error` is the decompression error text, empty for `present`. It is an operational record: it is **not** part of the R1–R7 contract, is not compared, and the reference calculation does not produce it. Historical backfill reads local files and has no HTTP status. When live ingestion downloads files, it adds an `http_status` column through change control (§10).
+**Registry evidence.** The pipeline writes `registry_evidence.csv` next to `registry.csv`, with columns `source_file_hour,status,file_bytes,lines,error`. `file_bytes` is empty for `missing`. `lines` is the number of lines recovered. `error` is the decompression error text, empty for `present`. It is an operational record: it is **not** part of the R1–R7 contract, is not compared, and the reference calculation does not produce it. Historical backfill reads local files and has no HTTP status. Live ingestion (`02-live-ingestion.md` §5.3) adds two columns, `http_status` and `available_at`; backfill rows leave `http_status` empty and fill in the computed `available_at`.
 
 ---
 
@@ -120,7 +120,7 @@ Quarantine schema: `source_file_hour, source_line, reason_code, raw_line`. Quara
 
 **`available_at` rules:**
 
-- *Live ingestion:* the time our fetcher first successfully downloaded and validated the file. Observed, not assumed.
+- *Live ingestion:* the time our fetcher first successfully downloaded and validated the file. Observed, not assumed. What counts as a success, and the truncated-at-deadline case, are defined in `02-live-ingestion.md` §4.
 - *Historical backfill:* the true publication time was never recorded, and `Last-Modified` can reflect later re-uploads. So `available_at = source_file_hour + 1h + L`, where `L` is a fixed, conservative lag.
   - **`L = 6h`. DECIDED (OPEN-2).** This holds until live ingestion has measured the real delay distribution; then `L` is set to the observed p99, rounded up to the next hour, through change control (§10). Changing `L` invalidates any detector evaluation run under the old value.
 - `source_last_modified` is recorded but never used for cutoffs.
@@ -277,7 +277,7 @@ Gate 1 fails if any check above fails, or if any evidence artifact was produced 
 | ID | Decision | Resolution | Decided |
 |---|---|---|---|
 | OPEN-1 | Gate 1 month | September 2026 (UTC) | 2026-10-14, v0.2 |
-| OPEN-2 | Historical availability lag `L` | 6h, recalibrated to measured live p99 | 2026-10-14, v0.2 |
+| OPEN-2 | Historical availability lag `L` | 6h, recalibrated to measured live p99 (measurement: 02 §7, 14 days) | 2026-10-14, v0.2 |
 | OPEN-3 | Source-reconciliation tolerance | ≤ 0.1% relative difference per cell, all §5.2 metrics | 2026-10-14, v0.2 |
 | — | Gate 1 R5 cutoffs | daily 00:00Z, 2026-09-08 → 2026-10-01 (24 cutoffs) | 2026-10-14, v0.6 |
 | G23 | `actor.id` / `repo.id` outside int64 | `Q4` | 2026-10-14, v0.7 |
@@ -291,6 +291,7 @@ Gate 1 fails if any check above fails, or if any evidence artifact was produced 
 | G31 | Repeated keys in one object | last occurrence wins, at every level | 2026-10-15, v0.11 |
 | — | Reference size limit (§6) | roughly 350 lines (was 250) | 2026-10-15, v0.11 |
 | G32 | `payload_raw` at month scale | null in Gate 1; recoverable via `source_file_hour` + `source_line` + manifest SHA-256 + `record_hash` | 2026-10-15, v0.12 |
+| — | Live ingestion | `02-live-ingestion.md` approved; decisions L1–L8 in 02 §12; registry evidence gains `http_status`, `available_at` | 2026-10-15, v0.13 |
 
 No open decisions remain in this document.
 

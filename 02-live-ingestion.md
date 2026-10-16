@@ -1,10 +1,10 @@
 # 02 — Live Ingestion
 
-**Status:** Draft v0.1 · 2026-10-15
+**Status:** Approved v0.2 · 2026-10-15
 **Owner:** Steven (approves all changes)
 **Depends on:** `01-event-semantics.md` v0.12. Everything in 01 still holds. This document only adds what changes when files are downloaded as they are published, instead of read from a finished archive.
 
-> Agents: same rules as 01. This document is authoritative once approved. Items marked **OPEN** must be decided before any live-ingestion code is written. Each carries a recommendation, and the owner decides.
+> Agents: same rules as 01. This document is authoritative. All decisions are recorded in §12; changes go through 01 §10 change control.
 
 ---
 
@@ -40,10 +40,10 @@ Live ingestion has two jobs:
 
 - **Hours tracked.** From the live start hour `h0` onward, every hour is tracked. Hours before `h0` are backfill and keep the 01 §4 formula.
 - **First attempt.** At the due time.
-- **Poll interval.** While an hour's file is not yet available (HTTP 404), it is retried every **`P` minutes**. **OPEN-L1: `P`.** Recommendation: `P = 5 min`.
+- **Poll interval.** While an hour's file is not yet available (HTTP 404), it is retried every **`P = 5` minutes** (L1).
   - The interval bounds how precise the measurement can be: an observed `available_at` is late by up to `P`, never early. So the measured delay is conservative.
   - At `P = 5`, a pending hour costs 12 requests per hour.
-- **Giving up.** An hour still not available **`D` hours** after its due time becomes `missing` in the registry. The fetcher keeps trying once an hour for 7 days after that, so a late file is still archived and logged. **OPEN-L2: `D`.** Recommendation: `D = 48h`.
+- **Giving up.** An hour still not available **`D = 24` hours** after its due time becomes `missing` in the registry (L2). The fetcher keeps trying once an hour for 7 days after that, so a late file is still archived and logged.
   - A file found after `D` is archived and logged, but the hour stays `missing` for live runs.
   - Picking such a file up later is a backfill, under the backfill `available_at` rule. It is never a silent status change.
 - **Politeness.**
@@ -70,7 +70,7 @@ An attempt **succeeds** only when all of these hold:
 - It is archived under its SHA-256 and logged with its status.
 - Polling continues, because the source may still be mid-upload.
 - If the deadline `D` passes with only truncated versions, the **last** truncated version is ingested as `truncated`, as in 01 §1, with `available_at` set to the moment the deadline passed.
-- **OPEN-L3:** whether to ingest a truncated version at all, or mark the hour `missing`. Recommendation: ingest, as above. It matches backfill behaviour, where a truncated file is used.
+- This matches backfill behaviour, where a truncated file is used (L3).
 
 **Clock.** The fetcher's clock must be NTP-synchronised. The fetch log records the clock source and the offset reported at fetcher start, and every 24 h after that.
 
@@ -80,7 +80,7 @@ An attempt **succeeds** only when all of these hold:
 
 ### 5.1 Archive
 
-`archive/YYYY-MM-DD-H/<sha256>.json.gz`. Files are never modified or deleted while their hour is inside the retention window. **OPEN-L4: retention.** Recommendation: keep every file until it has been ingested and its month has passed a Gate 2 run, then keep only the manifest (name, SHA-256, size). That is the same recoverability argument as 01 G32: the file can be re-downloaded and proven identical by its hash.
+`archive/YYYY-MM-DD-H/<sha256>.json.gz`. Files are never modified or deleted while their hour is inside the retention window. **Retention (L4):** every file is kept until it has been ingested and its month has passed a Gate 2 run; then only the manifest (name, SHA-256, size) is kept. That is the same recoverability argument as 01 G32: the file can be re-downloaded and proven identical by its hash.
 
 ### 5.2 Fetch log
 
@@ -103,21 +103,21 @@ Live runs add `http_status` and `available_at` columns to `registry_evidence.csv
 - **Same code path as replay.** Live ingestion is the existing replay mode (01 §4), fed hour by hour as files succeed, with each hour's observed `available_at`. No second ingestion path is written.
 - **Order.** Hours are ingested in `source_file_hour` order. If hour `h` is pending while `h+1` has already succeeded, `h+1` waits until `h` succeeds or reaches `D`. This keeps live identical to replay.
   - The cost: one slow hour delays the next ones by up to `D`.
-  - **OPEN-L5:** strict order, as above, or ingest out of order. Out of order would need a proof that deduplication's "smallest `(source_file_hour, source_line)`" result does not depend on arrival order. Recommendation: strict order now, and revisit only if measured delays make it hurt.
+  - Strict order is decided (L5). Ingesting out of order would need a proof that deduplication's "smallest `(source_file_hour, source_line)`" result does not depend on arrival order; revisit only if measured delays make strict order hurt.
 - **Re-published files.**
   - The fetcher re-requests each succeeded hour once at `available_at + 24h`, using `If-None-Match` with the stored `etag`.
   - If the content changed (a new SHA-256), it is archived and logged as `outcome = republished`.
   - The canonical tables keep the **first** version. Changing them would rewrite history behind a cutoff that already passed, which breaks the point-in-time rule.
   - Republished hours are counted and reported.
-  - **OPEN-L6:** the recheck schedule. Recommendation: a single check at +24 h, to measure how often republication happens before spending more requests on it.
+  - One recheck at +24 h (L6) measures how often republication happens before more requests are spent on it.
 
 ---
 
 ## 7. Measuring the delay and replacing `L`
 
 - **Per hour.** `delay = available_at − due time`, for every hour with outcome `success`. Hours that ended `missing` or ingested-truncated are counted separately, never folded into the distribution.
-- **Window.** At least **28 consecutive days** (672 hours) of live ingestion. Each weekday appears four times, and the p99 rests on at least 6 hours above it.
-  - **OPEN-L7:** the window length. Recommendation: 28 days.
+- **Window.** At least **14 consecutive days** (336 hours) of live ingestion (L7). Each weekday appears twice.
+  - With 336 samples, the p99 rests on only about 3 hours above it, so it is a thin estimate. Rounding up to the next whole hour and the `+ P` measurement error both push `L` the safe way. The report gives the max alongside the p99, so an outlier is visible.
 - **Report.** `evidence/delay-report.json` contains:
   - window start and end
   - hours tracked; succeeded; missing; ingested truncated; republished
@@ -149,7 +149,7 @@ Live data cannot be verified by re-reading a finished archive alone, because `av
 
 ## 9. Gate 2: live ingestion acceptance
 
-Gate 2 passes only if **all** of the following hold over one window of at least 28 days (§7):
+Gate 2 passes only if **all** of the following hold over one window of at least 14 days (§7):
 
 1. Every tracked hour has a registry status and a final fetch-log outcome; no hour is left unaccounted for.
 2. Live = replay (§8.1), byte-identical.
@@ -164,7 +164,7 @@ Gate 2 does not require the fetcher to have been running the whole time. Downtim
 
 ## 10. Where the fetcher runs
 
-The fetcher has to run without gaps for 28+ days, and `available_at` is only as good as its clock and uptime. The Gate 1 machine, a laptop, idle-slept during a CI run (`changes/2026-10-15-gate1-caffeinate.md`), so it is unsuitable as is. **OPEN-L8: host.**
+The fetcher has to run without gaps for 14+ days, and `available_at` is only as good as its clock and uptime. The Gate 1 machine, a laptop, idle-slept during a CI run (`changes/2026-10-15-gate1-caffeinate.md`), so it is unsuitable as is. **Host (L8): option A.**
 
 | Option | Cost | Uptime / clock | Notes |
 |---|---|---|---|
@@ -176,24 +176,26 @@ Option A needs a billing account on the Google Cloud project; the BigQuery sandb
 
 ---
 
-## 11. Changes to 01 when this is approved
+## 11. Changes made to 01 (v0.13) with this approval
 
 - **§1 Registry evidence:** add `http_status` and `available_at` columns for live runs (§5.3).
 - **§4 `available_at`:** point *Live ingestion* at 02 §4. This adds the definition of a success and the truncated-at-deadline case.
-- **§9:** record the OPEN-L1…L8 decisions.
-- Version bump to v0.13.
+- **§9:** points to the L1–L8 decisions in 02 §12.
+- Version bumped to v0.13.
 
 ---
 
 ## 12. Decisions
 
-| ID | Question | Recommendation | Status |
+| ID | Question | Resolution | Decided |
 |---|---|---|---|
-| OPEN-L1 | poll interval `P` | 5 min | OPEN |
-| OPEN-L2 | give-up deadline `D` | 48 h | OPEN |
-| OPEN-L3 | truncated at the deadline: ingest or `missing` | ingest the last version | OPEN |
-| OPEN-L4 | archive retention | until the month passes Gate 2, then manifest only | OPEN |
-| OPEN-L5 | strict hour order | strict order | OPEN |
-| OPEN-L6 | republication recheck | once, at +24 h | OPEN |
-| OPEN-L7 | measurement window | 28 days | OPEN |
-| OPEN-L8 | fetcher host | always-free cloud VM | OPEN |
+| L1 | poll interval `P` | 5 min | 2026-10-15, v0.2 |
+| L2 | give-up deadline `D` | 24 h (recommended 48 h) | 2026-10-15, v0.2 |
+| L3 | truncated at the deadline: ingest or `missing` | ingest the last truncated version as `truncated`; `available_at` = the deadline | 2026-10-15, v0.2 |
+| L4 | archive retention | until the month passes Gate 2, then manifest only | 2026-10-15, v0.2 |
+| L5 | hour order | strict `source_file_hour` order | 2026-10-15, v0.2 |
+| L6 | republication recheck | once, at `available_at` + 24 h | 2026-10-15, v0.2 |
+| L7 | measurement window | 14 days (recommended 28) | 2026-10-15, v0.2 |
+| L8 | fetcher host | always-free cloud VM (e.g. GCP `e2-micro`), $1 budget alert | 2026-10-15, v0.2 |
+
+No open decisions remain in this document.
