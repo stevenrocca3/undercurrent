@@ -1,6 +1,6 @@
 # 02 — Live Ingestion
 
-**Status:** Approved v0.3 · 2026-10-15
+**Status:** Approved v0.4 · 2026-10-15
 **Owner:** Steven (approves all changes)
 **Depends on:** `01-event-semantics.md` v0.12. Everything in 01 still holds. This document only adds what changes when files are downloaded as they are published, instead of read from a finished archive.
 
@@ -136,7 +136,9 @@ Live data cannot be verified by re-reading a finished archive alone, because `av
 
 **Manifest format.** A CSV with header `source_file_hour,available_at` and one row per hour.
 - `source_file_hour` uses the 01 §6 timestamp format.
-- `available_at` is ISO-8601 with an explicit UTC offset and up to microsecond precision, e.g. `2026-10-16T01:03:12.5Z`. A value without an offset is an error.
+- `available_at` is an instant in the 01 §2 `Q3` form: `YYYY-MM-DDTHH:MM:SS[.f{1,6}](Z|±HH:MM)`, uppercase `T` and `Z`, a valid instant, e.g. `2026-10-16T01:03:12.5Z`. Any offset is accepted and converted to UTC.
+- **Errors (G33):** the run stops, without writing outputs, on a header other than exactly `source_file_hour,available_at`, an hour listed twice, or a value not in that form (no offset, a space or lowercase separator, the compact form, 7+ fractional digits).
+- Listed hours outside the requested range are ignored. An `available_at` earlier than the hour's due time is used as given; it would show a clock fault, and the fetch log (§5.2) is where to catch that.
 - Hours the manifest does not list use the 01 §4 backfill rule; these are hours before `h0`.
 - In fixtures, the manifest is the file `available_at.csv` next to `fixture.json`. When it is absent, every hour is backfill.
 
@@ -203,6 +205,7 @@ Option A needs a billing account on the Google Cloud project; the BigQuery sandb
 | L6 | republication recheck | once, at `available_at` + 24 h | 2026-10-15, v0.2 |
 | L7 | measurement window | 14 days (recommended 28) | 2026-10-15, v0.2 |
 | L8 | fetcher host | always-free cloud VM (e.g. GCP `e2-micro`), $1 budget alert | 2026-10-15, v0.2 |
-| — | manifest format; unlisted hours; fixture file | §8: CSV `source_file_hour,available_at`, offset required, µs precision; unlisted hours are backfill; fixtures use `available_at.csv` | 2026-10-15, v0.3 (pending approval in PR) |
+| — | manifest format; unlisted hours; fixture file | §8: CSV `source_file_hour,available_at`, offset required, µs precision; unlisted hours are backfill; fixtures use `available_at.csv` | 2026-10-15, v0.3 |
+| G33 | manifest validation | strict 01 §2 `Q3` instant form, any offset; a repeated hour, bad header or bad value is an error; out-of-range hours ignored; an early `available_at` used as given | 2026-10-15, v0.4 |
 
 No open decisions remain in this document.

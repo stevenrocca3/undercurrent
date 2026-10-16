@@ -45,6 +45,7 @@ A note's own **Status** line records the moment it was written (often "not pushe
 | 2026-10-15-reference-available-at | reference: `--available-at` manifest | #25 |
 | 2026-10-15-live-ingestion-briefs | briefs for live ingestion (pipeline, verifier); 02 v0.3 manifest format | #25 |
 | 2026-10-15-copilot-instructions | Copilot instructions and quota-saving settings | #26 |
-| 2026-10-15-live-step1-cross-check | live step 1 cross-check (PASS on a real week), G33 findings, VM setup guide | — |
+| 2026-10-15-live-step1-cross-check | live step 1 cross-check (PASS on a real week), G33 findings, VM setup guide | #27 |
+| 2026-10-15-g33-manifest-validation | G33 decided (02 v0.4): strict manifest validation; reference tightened; black-box test of both | — |
 
 Pipeline notes (`2026-10-15-pipeline-*`) live on the `pipeline` branch until it merges.
