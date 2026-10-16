@@ -89,6 +89,32 @@ Both implementations: `run INPUT_DIR FIRST_HOUR LAST_HOUR OUT_DIR [--cutoff T ..
 - **`available_at` manifest** (02 §8): the header is exactly `source_file_hour,available_at`. Values need an explicit offset and at most 6 fractional digits. A repeated hour is an error. Unlisted hours use the backfill rule `h + 1h + 6h`.
 - **Data lives outside the repo**, in `~/undercurrent-data/` (`gharchive/` inputs at 19 GB, `runs/` outputs). Never commit it, and don't open it to "look around".
 - **iCloud:** `~/Documents` is iCloud-synced and creates `name 2.ext` duplicates. They are git-ignored; never commit or edit them.
+## Autonomy: what agents start without asking Steven
+
+Steven decides; agents coordinate. The **lead** (the pipeline Claude session, `~/Documents/undercurrent-pipeline`) runs routine testing and review between agents and is in charge of code quality and refactoring across `pipeline/`, `tools/` and `fixtures/generate_inputs.py`.
+
+**Any agent may, without asking:**
+- push its own branch (never `main`) and open or update a PR from it
+- request a PR review from Copilot (`gh pr edit N --add-reviewer @copilot`), or run a reviewer headless in its own checkout (`copilot -p`, `codex exec`)
+- ask Gemini for a second opinion on a choice that is not a spec decision (`gemini -p`)
+- ask another Claude session to run a check and report the result (SendMessage)
+- ask the verifier for fixtures that cover a spec section
+
+**Steven only:**
+- spec changes, and deciding any `G` gap (agents still open gaps as OPEN, with a provisional choice)
+- merges to `main`
+- anything that costs money or changes the cloud account; destructive actions on the fetcher VM (stop, delete, wiping the archive)
+- starting or restarting a Gate window
+- a refactor that is **too messy for the lead to fix in passing** (see below)
+
+**Messages between agents (independence, 01 §6).** A request names only spec sections, fixture IDs, commands, file paths, and pass/fail results. It never contains code, pseudo-code, or how either implementation works. Between `pipeline/` and `reference/` this holds in both directions, and nobody carries such knowledge between them. The lead never reads `reference/` (see the roles table above), so a review of `reference/` goes to the reference agent itself or to a helper that never touches `pipeline/`.
+
+**Refactoring and code quality (the lead).**
+- Reviews every agent's PR for the house style: the simplest code that meets the spec, names and comments matching the surrounding code, no dead code, tests beside the code, a change note per change.
+- Small issues: fixed by the lead in passing (pipeline, tools) or sent back to the author as a review comment.
+- Too messy (a module that needs restructuring, duplicated logic across files, a design that fights the spec): the lead writes `changes/YYYY-MM-DD-refactor-<topic>.md` (what, why, proposed shape, risk) and stops for Steven, who sends out the work.
+
+**When to coordinate.** At the end of a brief step, when a gap opens, or when a PR is ready. Not on every commit: each headless run starts cold and costs tokens.
 
 ## Working rules (Steven's)
 

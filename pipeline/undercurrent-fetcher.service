@@ -1,0 +1,17 @@
+# systemd unit for the live fetcher on the Oracle VM (02 §10, brief step 4).
+# Install: copy to /etc/systemd/system/, then: sudo systemctl enable --now undercurrent-fetcher
+# The start hour h0 is fixed here, so a restart keeps tracking the same hours.
+[Unit]
+Description=undercurrent GH Archive fetcher (02-live-ingestion.md)
+Wants=network-online.target time-sync.target
+After=network-online.target time-sync.target
+
+[Service]
+User=opc
+WorkingDirectory=/home/opc/undercurrent
+ExecStart=/usr/bin/python3 -m pipeline.fetcher run /home/opc/undercurrent-data/fetcher 2026-10-16T06:00:00Z
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
