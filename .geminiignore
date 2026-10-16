@@ -1,7 +1,7 @@
 # Independence (spec §6): Gemini agents build from the spec and fixtures only.
 # The reference implementation, and notes describing how it works, stay hidden.
 reference/
-changes/2026-10-14-reference-*.md
+changes/*-reference-*.md
 changes/2026-10-14-tidy-reference-and-tests.md
 changes/2026-10-14-refactor-proposal-shared-contract.md
 changes/2026-10-14-agent-briefs.md
