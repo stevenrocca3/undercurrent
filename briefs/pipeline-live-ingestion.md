@@ -30,8 +30,8 @@ Read `briefs/pipeline-author.md` § Independence. In short: never read `referenc
      - one recheck at `available_at + 24h` using `If-None-Match`, logging `republished` when the content changed
    - **Manifest export:** the fetch log exports the `available_at` manifest.
    - **State:** it must survive a restart without losing or duplicating fetch-log rows. Keep the state in the fetch log itself.
-   - **Clock:** record the NTP offset at start and every 24 h (02 §4).
-3. **Live mode** (02 §6): feed succeeded hours, in strict `source_file_hour` order, into your existing replay path with their observed `available_at`. An hour waits for every earlier hour to succeed or pass `D`.
+   - **Clock:** record the NTP offset at start and every 24 h in `clock.csv` (02 §5.4). **G34 follow-up:** this replaces your provisional `outcome = clock` rows; do it at the start of step 3.
+3. **Live mode** (02 §6): feed each hour's final outcome (02 §5.2: the `success` file, the `deadline` version, or nothing), in strict `source_file_hour` order, into your existing replay path with their observed `available_at`. An hour waits for every earlier hour to succeed or pass `D`.
    - The canonical tables keep the first version of a republished file.
    - Live tables must be byte-identical to a replay of the archive using the exported manifest (02 §8.1).
 4. **Deploy** the fetcher on the VM once Steven has it running, and start the 14-day window (L7). The pipeline itself runs on the Mac from a copy of the archive.

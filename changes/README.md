@@ -50,5 +50,6 @@ A note's own **Status** line records the moment it was written (often "not pushe
 | 2026-10-15-agents-md | AGENTS.md: shared orientation for every agent; Copilot instructions cut to a pointer | #30 |
 | 2026-10-15-verifier-live-fixtures | fixtures F28-F32 for 02 §8.3; requested_hours fix | — |
 | 2026-10-16-oracle-fetcher-vm | fetcher VM moved to Oracle Cloud Always Free (02 v0.5, L8 provider); VM guide rewritten | — |
+| 2026-10-16-fetcher-cross-check | fetcher black-box check against real GH Archive (PASS); G34 decided (02 v0.6, clock.csv) | — |
 
 Pipeline notes (`2026-10-15-pipeline-*`) live on the `pipeline` branch until it merges.
