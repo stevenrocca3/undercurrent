@@ -1,10 +1,10 @@
 # 03 — Signals, Target and Backtest
 
-**Status:** Draft v0.2 · 2026-10-16 (not approved). v0.1 drafted by the pipeline agent; v0.2 review edits by the scrum master.
+**Status:** Draft v0.3 · 2026-10-16 (not approved). v0.1 drafted by the pipeline agent; v0.2 review edits and v0.3 (S14) by the scrum master.
 **Owner:** Steven (approves all changes)
 **Depends on:** `01-event-semantics.md` v0.13 (canonical events, point-in-time rule) and `02-live-ingestion.md` v0.8 (`available_at`, `L`). Everything in 01 and 02 still holds. This document defines what is computed **from** canonical events: the prediction target, the signals, the noise filters, and how the signals are judged against history.
 
-> Agents: same rules as 01. Once approved, this document is authoritative. Decisions are recorded in §9 (S1–S13); while the status is Draft, every S row is provisional. Changes go through 01 §10 change control.
+> Agents: same rules as 01. Once approved, this document is authoritative. Decisions are recorded in §9 (S1–S14); while the status is Draft, every S row is provisional. Changes go through 01 §10 change control.
 
 ---
 
@@ -97,6 +97,16 @@ A repo's hour `h` is a **burst** if, within `[t − 30d, t)`:
 
 Stargazers whose only star events in the window fall in burst hours are left out of the cleaned star features (§5), and counted separately as `burst_stargazers_30d`. The repo itself stays in `C(t)`. Without account age (S2), a burst can't be told apart from a real launch; this filter only stops one hour from driving the star signals.
 
+### 4.4 Burst-and-die positives (S14)
+
+A hackathon, course or one-off event repo can gain many new contributors in a few days and then go quiet. That fits the target exactly, but it's not the growth V1 is meant to find. Nothing in the data before `t` can tell such a repo apart reliably yet. So in V1 this is a **measured diagnostic**, not a filter.
+
+- **Retention.** For a positive `(r, t)`, `retained(r, t)` is the share of its `N_new` new contributors who also have a contribution event to `r` in `[t + 30d, t + 60d)`. It uses records with `available_at ≤ t_R = t + 60d + 1h + L`.
+- **Burst-and-die.** A positive with `retained < 0.2`.
+- **It is never a feature, a filter or a label input.** It uses data after the label window, so using it at `t` would leak. It's reported only.
+- **Reported:** per cutoff and model, how many of the top 100 are burst-and-die positives (`eval.csv` metric `burst_and_die_top100`), plus the share among all positives. A cutoff is reported only if its `t_R` falls inside the backfill.
+- **Decision point, pre-registered.** If, on the **training** cutoffs only (§7.2), burst-and-die positives make up more than 25% of the positives in `M1`'s or `M2`'s top 100, a filter must be designed and approved, through a decision record, **before the first test cutoff is scored** (§6.5). It may use only data as of `t`. Otherwise V1 is evaluated without one, and the share is still reported on every test cutoff.
+
 ## 5. Signals (features)
 
 Every feature is computed as of `t` under the point-in-time rule, per `repo_id`, after the bot filter. A window `[t − d, t)` includes `t − d` (01 §4). "7d" and "30d" mean `[t − 7d, t)` and `[t − 30d, t)`. A ratio is null when its denominator is 0.
@@ -165,7 +175,7 @@ Per test cutoff, over `C(t)`:
 - **Recall@K** for the same K.
 - **AUROC.**
 - **Average precision (PR-AUC).** With a base rate near 1%, AUROC alone flatters every model; PR-AUC is the honest one.
-- **Base rate** `|y = 1| / |C(t)|`, and the §4.2 filter-loss count.
+- **Base rate** `|y = 1| / |C(t)|`, the §4.2 filter-loss count, and the §4.4 burst-and-die counts.
 
 **V1 passes (pre-registered, S11)** if, on the test cutoffs, `M1` or `M2` beats **`B*`**, the stronger of `B1` (stars) and `B3` (persistence) by mean Precision@100:
 
@@ -216,3 +226,4 @@ All provisional until Steven approves v1.0.
 | S11 | V1 pass bar | §7.3: against `B*` = the stronger of `B1` and `B3`: Precision@100 ≥ 1.5× `B*`, wins on ≥ 75% of cutoffs, AUROC > `B*`. **Agreed by Steven 2026-10-16** |
 | S12 | independent implementations for `features.csv` and `labels.csv` | yes, as in 01 §6 |
 | S13 | star counting | distinct non-bot stargazers per window, not gross star events |
+| S14 | burst-and-die (hackathon-like) positives | reported, not filtered: `retained < 0.2` over `[t + 30d, t + 60d)`; if > 25% of `M1`/`M2` top-100 positives on training cutoffs, a pre-`t` filter is decided before testing (§4.4). **Added at Steven's request 2026-10-16** |
