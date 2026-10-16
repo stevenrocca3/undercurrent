@@ -1,0 +1,21 @@
+{
+  // Copilot Free has a monthly completion quota: don't spend it on data and prose.
+  "github.copilot.enable": {
+    "*": true,
+    "csv": false,
+    "json": false,
+    "jsonl": false,
+    "plaintext": false,
+    "markdown": false
+  },
+  // Keep generated data out of search and Copilot's workspace context.
+  "files.exclude": {
+    "**/__pycache__": true,
+    ".venv": true
+  },
+  "search.exclude": {
+    "fixtures/*/input": true,
+    "**/*.json.gz": true,
+    "evidence/gate1.json": true
+  }
+}
