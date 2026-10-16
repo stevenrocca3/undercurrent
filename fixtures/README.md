@@ -2,6 +2,7 @@
 
 These fixtures implement `01-event-semantics.md` v0.2, §7 (F01-F13), plus F14-F17, which cover the quarantine and registry rules decided on 2026-10-14, and F18-F27, which cover the rules decided in spec v0.4-v0.6 (see `SPEC-GAPS.md`). The verifier agent wrote them, and Steven hand-checks them. **Expected outputs are hand-authored from the reasoning in each fixture's README. No code computes them.** `generate_inputs.py` writes `input/*.json.gz` from literal strings and live fixture manifests from literal rows. Special byte-level cases are handled via dedicated helpers.
 F28-F32 cover observed `available_at` manifests for live ingestion (02 §8.3).
+`detector/` holds D-series fixtures for 03 §8; they have separate inputs and expected `features.csv` / `labels.csv` and are not R1-R7 fixtures.
 
 Most fixtures F02-F27 are **F01 plus one anomaly** (or clean multi-hour tests). F01's hour-0 file (6 lines: B1..B6) is reused byte for byte. F28-F32 are compact, dedicated manifest cases. Check F01 first; the earlier fixtures' expected outputs are F01's plus a small delta, explained in each README.
 

@@ -175,3 +175,13 @@ These are places where `01-event-semantics.md` v0.2 was silent or ambiguous, so 
 - **Provisional (reference author, `tools/gate2_config.json`):** the same rule on the live window. Daily at 06:00Z, 2026-10-23 → 2026-10-30 (8 cutoffs), so every `[t − 7d, t)` lies inside hours 2026-10-16T06Z..2026-10-30T05Z. The live run (`pipeline live --cutoff`) must use the same list.
 - **Decision:** the provisional rule, now in 02 §9 criterion 3.
 - **Depends:** `tools/gate2.sh`.
+
+## G37. Numeric and null CSV cells for detector outputs (03 §8, 01 §6): OPEN
+- **Gap:** 03 says ratios with a zero denominator are null, but neither 03 nor 01 says how nulls are serialized. Neither specifies precision or textual formatting for computed ratios, although detector CSVs are compared byte for byte.
+- **Provisional:** write null as an empty cell; write integer-valued ratios with one decimal place (for example, `0.0` or `1.0`) and other ratios as the shortest round-trip decimal for IEEE-754 binary64. Counts remain base-10 integers. No rounding beyond that representation.
+- **Depends:** detector fixtures D01-D09 (null ratio cells); D03 and D05 (non-null ratio serialization).
+
+## G38. Row scope for detector outputs (03 §3, §5, §8): OPEN
+- **Gap:** §3 defines the candidate set and labels on it, while §5 defines features per repo, but §8 gives output columns without stating which repos get rows in `features.csv` and `labels.csv`, or whether zero-label candidates are retained.
+- **Provisional:** for each cutoff, write one row per repo in `C(t)` to both files, including candidates with `n_new = 0` and `y = 0`; omit single-author repos and all other repos outside `C(t)`.
+- **Depends:** D01-D09; D05 tests omission of the single-author repo.

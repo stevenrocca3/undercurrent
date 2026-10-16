@@ -120,6 +120,133 @@ F32_STAR_H0 = r'{"id":"32001","type":"WatchEvent","actor":{"id":205,"login":"eri
 F32_STAR_H1 = r'{"id":"32002","type":"WatchEvent","actor":{"id":205,"login":"erin"},"repo":{"id":502,"name":"acme/zephyr"},"payload":{"action":"started"},"public":true,"created_at":"2026-09-01T01:20:00Z"}'
 
 # --------------------------------------------------------------------------
+# Detector fixtures (03 §8; cutoff 2026-06-01T00:00:00Z).
+# --------------------------------------------------------------------------
+D01_FORK_A = r'{"id":"D0101","type":"ForkEvent","actor":{"id":1,"login":"a"},"repo":{"id":701,"name":"detector/edges"},"payload":{},"public":true,"created_at":"2026-05-02T00:00:00Z"}'
+D01_FORK_B = r'{"id":"D0102","type":"ForkEvent","actor":{"id":2,"login":"b"},"repo":{"id":701,"name":"detector/edges"},"payload":{},"public":true,"created_at":"2026-05-02T00:00:00Z"}'
+D01_RELEASE = r'{"id":"D0103","type":"ReleaseEvent","actor":{"id":3,"login":"c"},"repo":{"id":701,"name":"detector/edges"},"payload":{"action":"published"},"public":true,"created_at":"2026-05-25T00:00:00Z"}'
+D01_AT_CUTOFF = r'{"id":"D0104","type":"PushEvent","actor":{"id":4,"login":"d"},"repo":{"id":701,"name":"detector/edges"},"payload":{},"public":true,"created_at":"2026-06-01T00:00:00Z"}'
+D01_LATE_AVAILABLE = r'{"id":"D0105","type":"PushEvent","actor":{"id":5,"login":"e"},"repo":{"id":701,"name":"detector/edges"},"payload":{},"public":true,"created_at":"2026-05-31T00:30:00Z"}'
+
+D02_OLD_HISTORY = r'{"id":"D0201","type":"PushEvent","actor":{"id":11,"login":"old"},"repo":{"id":702,"name":"detector/labels"},"payload":{},"public":true,"created_at":"2026-03-02T23:59:59Z"}'
+D02_RECENT_HISTORY = r'{"id":"D0202","type":"PushEvent","actor":{"id":12,"login":"recent"},"repo":{"id":702,"name":"detector/labels"},"payload":{},"public":true,"created_at":"2026-05-17T00:00:00Z"}'
+D02_CANDIDATE_STAR = r'{"id":"D0203","type":"WatchEvent","actor":{"id":13,"login":"star"},"repo":{"id":702,"name":"detector/labels"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:00:00Z"}'
+D02_OLD_AT_T = r'{"id":"D0204","type":"PushEvent","actor":{"id":11,"login":"old"},"repo":{"id":702,"name":"detector/labels"},"payload":{},"public":true,"created_at":"2026-06-01T00:00:00Z"}'
+D02_RECENT_FUTURE = r'{"id":"D0205","type":"PushEvent","actor":{"id":12,"login":"recent"},"repo":{"id":702,"name":"detector/labels"},"payload":{},"public":true,"created_at":"2026-06-02T00:00:00Z"}'
+D02_AT_LABEL_END = r'{"id":"D0206","type":"PushEvent","actor":{"id":14,"login":"end"},"repo":{"id":702,"name":"detector/labels"},"payload":{},"public":true,"created_at":"2026-07-01T00:00:00Z"}'
+D02_LATE_LABEL = r'{"id":"D0207","type":"PushEvent","actor":{"id":15,"login":"late"},"repo":{"id":702,"name":"detector/labels"},"payload":{},"public":true,"created_at":"2026-06-21T00:00:00Z"}'
+
+D03_PUSH = r'{"id":"D0301","type":"PushEvent","actor":{"id":21,"login":"push"},"repo":{"id":703,"name":"detector/actions"},"payload":{},"public":true,"created_at":"2026-05-24T00:00:00Z"}'
+D03_PR_OPEN = r'{"id":"D0302","type":"PullRequestEvent","actor":{"id":22,"login":"pr-open"},"repo":{"id":703,"name":"detector/actions"},"payload":{"action":"opened"},"public":true,"created_at":"2026-05-24T00:01:00Z"}'
+D03_ISSUE_CLOSE = r'{"id":"D0303","type":"IssuesEvent","actor":{"id":23,"login":"issue-close"},"repo":{"id":703,"name":"detector/actions"},"payload":{"action":"closed"},"public":true,"created_at":"2026-05-24T00:02:00Z"}'
+D03_REVIEW_CREATE = r'{"id":"D0304","type":"PullRequestReviewEvent","actor":{"id":24,"login":"review"},"repo":{"id":703,"name":"detector/actions"},"payload":{"action":"created"},"public":true,"created_at":"2026-05-24T00:03:00Z"}'
+D03_COMMENT = r'{"id":"D0305","type":"IssueCommentEvent","actor":{"id":25,"login":"comment"},"repo":{"id":703,"name":"detector/actions"},"payload":{"action":"created"},"public":true,"created_at":"2026-05-24T00:04:00Z"}'
+D03_PR_CLOSE = r'{"id":"D0306","type":"PullRequestEvent","actor":{"id":26,"login":"pr-close"},"repo":{"id":703,"name":"detector/actions"},"payload":{"action":"closed"},"public":true,"created_at":"2026-05-24T00:05:00Z"}'
+D03_ISSUE_OPEN = r'{"id":"D0307","type":"IssuesEvent","actor":{"id":27,"login":"issue-open"},"repo":{"id":703,"name":"detector/actions"},"payload":{"action":"opened"},"public":true,"created_at":"2026-05-24T00:06:00Z"}'
+
+D04_TARGET_A_PUSH = r'{"id":"D04-A-P","type":"PushEvent","actor":{"id":41,"login":"normal-a"},"repo":{"id":9000,"name":"detector/bots"},"payload":{},"public":true,"created_at":"2026-05-24T00:10:00Z"}'
+D04_TARGET_A_STAR = r'{"id":"D04-A-S","type":"WatchEvent","actor":{"id":41,"login":"normal-a"},"repo":{"id":9000,"name":"detector/bots"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:11:00Z"}'
+D04_TARGET_B_PUSH = r'{"id":"D04-B-P","type":"PushEvent","actor":{"id":42,"login":"normal-b"},"repo":{"id":9000,"name":"detector/bots"},"payload":{},"public":true,"created_at":"2026-05-24T00:12:00Z"}'
+D04_TARGET_B_STAR = r'{"id":"D04-B-S","type":"WatchEvent","actor":{"id":42,"login":"normal-b"},"repo":{"id":9000,"name":"detector/bots"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:13:00Z"}'
+D04_TARGET_C_PUSH = r'{"id":"D04-C-P","type":"PushEvent","actor":{"id":43,"login":"rate-runner"},"repo":{"id":9000,"name":"detector/bots"},"payload":{},"public":true,"created_at":"2026-05-24T00:14:00Z"}'
+D04_TARGET_C_STAR = r'{"id":"D04-C-S","type":"WatchEvent","actor":{"id":43,"login":"rate-runner"},"repo":{"id":9000,"name":"detector/bots"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:15:00Z"}'
+D04_TARGET_D_PUSH = r'{"id":"D04-D-P","type":"PushEvent","actor":{"id":44,"login":"release[bot]"},"repo":{"id":9000,"name":"detector/bots"},"payload":{},"public":true,"created_at":"2026-05-24T00:16:00Z"}'
+D04_TARGET_D_STAR = r'{"id":"D04-D-S","type":"WatchEvent","actor":{"id":44,"login":"release[bot]"},"repo":{"id":9000,"name":"detector/bots"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:17:00Z"}'
+
+D05_SINGLE = r'{"id":"D0501","type":"PushEvent","actor":{"id":51,"login":"solo"},"repo":{"id":801,"name":"detector/solo"},"payload":{},"public":true,"created_at":"2026-05-24T00:00:00Z"}'
+D05_BASE_PUSH = r'{"id":"D0502","type":"PushEvent","actor":{"id":52,"login":"author"},"repo":{"id":802,"name":"detector/restored"},"payload":{},"public":true,"created_at":"2026-05-24T00:01:00Z"}'
+D05_SECOND_STAR = r'{"id":"D0503","type":"WatchEvent","actor":{"id":53,"login":"stargazer"},"repo":{"id":802,"name":"detector/restored"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:02:00Z"}'
+
+D06_REPEAT_STAR_A = r'{"id":"D0601","type":"WatchEvent","actor":{"id":61,"login":"repeat"},"repo":{"id":803,"name":"detector/stargazers"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:00:00Z"}'
+D06_REPEAT_STAR_B = r'{"id":"D0602","type":"WatchEvent","actor":{"id":61,"login":"repeat"},"repo":{"id":803,"name":"detector/stargazers"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:01:00Z"}'
+D06_REPEAT_STAR_C = r'{"id":"D0603","type":"WatchEvent","actor":{"id":61,"login":"repeat"},"repo":{"id":803,"name":"detector/stargazers"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:02:00Z"}'
+D06_OTHER_STAR = r'{"id":"D0604","type":"WatchEvent","actor":{"id":62,"login":"other"},"repo":{"id":803,"name":"detector/stargazers"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:03:00Z"}'
+
+def detector_watch_line(event_id, actor_id, login, timestamp):
+    return (
+        '{"id":"' + event_id + '","type":"WatchEvent","actor":{"id":' +
+        str(actor_id) + ',"login":"' + login +
+        '"},"repo":{"id":804,"name":"detector/burst"},'
+        '"payload":{"action":"started"},"public":true,"created_at":"' +
+        timestamp + '"}'
+    )
+
+
+D07_BURST_INPUT = [
+    detector_watch_line(f"D07-B-{i:02d}", 71, "shared", "2026-05-22T00:00:00Z")
+    for i in range(1, 50)
+] + [
+    detector_watch_line("D07-B-50", 72, "burst-only", "2026-05-22T00:01:00Z")
+]
+D07_NEAR_INPUT = [
+    detector_watch_line(f"D07-N-{i:02d}", 71, "shared", f"2026-05-24T00:{i - 1:02d}:00Z")
+    for i in range(1, 21)
+] + [
+    detector_watch_line(f"D07-N-{i:02d}", 71 + i, f"stargazer-{i}", f"2026-05-24T00:{i - 1:02d}:00Z")
+    for i in range(21, 50)
+]
+D07_NEAR_LAST = detector_watch_line("D0704", 92, "stargazer-21", "2026-05-12T00:00:00Z")
+
+D08_STARS_1A = r'{"id":"D0801","type":"WatchEvent","actor":{"id":81,"login":"a"},"repo":{"id":805,"name":"detector/tie-a"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:00:00Z"}'
+D08_STARS_1B = r'{"id":"D0802","type":"WatchEvent","actor":{"id":82,"login":"b"},"repo":{"id":805,"name":"detector/tie-a"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:01:00Z"}'
+D08_STARS_2A = r'{"id":"D0803","type":"WatchEvent","actor":{"id":83,"login":"a"},"repo":{"id":806,"name":"detector/tie-b"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:02:00Z"}'
+D08_STARS_2B = r'{"id":"D0804","type":"WatchEvent","actor":{"id":84,"login":"b"},"repo":{"id":806,"name":"detector/tie-b"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:03:00Z"}'
+D08_NEW_1 = [
+    r'{"id":"D08-A-1","type":"PushEvent","actor":{"id":101,"login":"new-1"},"repo":{"id":805,"name":"detector/tie-a"},"payload":{},"public":true,"created_at":"2026-06-02T00:01:00Z"}',
+    r'{"id":"D08-A-2","type":"PushEvent","actor":{"id":102,"login":"new-2"},"repo":{"id":805,"name":"detector/tie-a"},"payload":{},"public":true,"created_at":"2026-06-02T00:02:00Z"}',
+    r'{"id":"D08-A-3","type":"PushEvent","actor":{"id":103,"login":"new-3"},"repo":{"id":805,"name":"detector/tie-a"},"payload":{},"public":true,"created_at":"2026-06-02T00:03:00Z"}',
+]
+D08_NEW_2 = [
+    r'{"id":"D08-B-1","type":"PushEvent","actor":{"id":201,"login":"new-1"},"repo":{"id":806,"name":"detector/tie-b"},"payload":{},"public":true,"created_at":"2026-06-02T00:01:00Z"}',
+    r'{"id":"D08-B-2","type":"PushEvent","actor":{"id":202,"login":"new-2"},"repo":{"id":806,"name":"detector/tie-b"},"payload":{},"public":true,"created_at":"2026-06-02T00:02:00Z"}',
+    r'{"id":"D08-B-3","type":"PushEvent","actor":{"id":203,"login":"new-3"},"repo":{"id":806,"name":"detector/tie-b"},"payload":{},"public":true,"created_at":"2026-06-02T00:03:00Z"}',
+]
+
+D09_STARS_1A = r'{"id":"D0901","type":"WatchEvent","actor":{"id":91,"login":"a"},"repo":{"id":807,"name":"detector/floor-a"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:00:00Z"}'
+D09_STARS_1B = r'{"id":"D0902","type":"WatchEvent","actor":{"id":92,"login":"b"},"repo":{"id":807,"name":"detector/floor-a"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:01:00Z"}'
+D09_STARS_2A = r'{"id":"D0903","type":"WatchEvent","actor":{"id":93,"login":"a"},"repo":{"id":808,"name":"detector/floor-b"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:02:00Z"}'
+D09_STARS_2B = r'{"id":"D0904","type":"WatchEvent","actor":{"id":94,"login":"b"},"repo":{"id":808,"name":"detector/floor-b"},"payload":{"action":"started"},"public":true,"created_at":"2026-05-24T00:03:00Z"}'
+D09_NEW_1 = [
+    r'{"id":"D09-A-1","type":"PushEvent","actor":{"id":301,"login":"new-1"},"repo":{"id":807,"name":"detector/floor-a"},"payload":{},"public":true,"created_at":"2026-06-02T00:01:00Z"}',
+    r'{"id":"D09-A-2","type":"PushEvent","actor":{"id":302,"login":"new-2"},"repo":{"id":807,"name":"detector/floor-a"},"payload":{},"public":true,"created_at":"2026-06-02T00:02:00Z"}',
+]
+D09_NEW_2 = [
+    r'{"id":"D09-B-1","type":"PushEvent","actor":{"id":401,"login":"new-1"},"repo":{"id":808,"name":"detector/floor-b"},"payload":{},"public":true,"created_at":"2026-06-02T00:03:00Z"}',
+]
+
+
+def bot_rate_filler_line(event_id, actor_id, login, repo_id):
+    return (
+        '{"id":"' + event_id + '","type":"PushEvent","actor":{"id":' +
+        str(actor_id) + ',"login":"' + login +
+        '"},"repo":{"id":' + str(repo_id) +
+        ',"name":"detector/filler"},"payload":{},"public":true,'
+        '"created_at":"2026-05-24T00:30:00Z"}'
+    )
+
+
+def bot_rate_fillers(label, actor_id, login, first_repo_id, counts):
+    lines = []
+    index = 1
+    for offset, count in enumerate(counts):
+        repo_id = first_repo_id + offset
+        for _ in range(count):
+            lines.append(bot_rate_filler_line(
+                f"D04-{label}-{index:04d}", actor_id, login, repo_id
+            ))
+            index += 1
+    return lines
+
+
+D04_BOT_INPUT = [
+    D04_TARGET_A_PUSH, D04_TARGET_A_STAR, D04_TARGET_B_PUSH, D04_TARGET_B_STAR,
+    D04_TARGET_C_PUSH, D04_TARGET_C_STAR, D04_TARGET_D_PUSH, D04_TARGET_D_STAR,
+]
+D04_BOT_INPUT += bot_rate_fillers("A", 41, "normal-a", 10001, [11] * 9 + [10] * 90)
+D04_BOT_INPUT += bot_rate_fillers("B", 42, "normal-b", 11001, [10] * 98 + [9] * 2)
+D04_BOT_INPUT += bot_rate_fillers("C", 43, "rate-runner", 12001, [10] * 99 + [9])
+
+# --------------------------------------------------------------------------
 # Fixtures: {fixture_dir: {input_file_name: [line, line, ...]}}
 # --------------------------------------------------------------------------
 FIXTURES = {
@@ -395,9 +522,99 @@ FIXTURES = {
         "2026-09-01-0.json.gz": [F32_STAR_H0],
         "2026-09-01-1.json.gz": [F32_STAR_H1],
     },
+    "detector/D01-window-edges-point-in-time": {
+        "2026-05-02-0.json.gz": [D01_FORK_A, D01_FORK_B],
+        "2026-05-25-0.json.gz": [D01_RELEASE],
+        "2026-05-31-0.json.gz": [D01_LATE_AVAILABLE],
+        "2026-06-01-0.json.gz": [D01_AT_CUTOFF],
+    },
+    "detector/D02-label-windows-newness": {
+        "2026-03-02-23.json.gz": [D02_OLD_HISTORY],
+        "2026-05-17-0.json.gz": [D02_RECENT_HISTORY],
+        "2026-05-24-0.json.gz": [D02_CANDIDATE_STAR],
+        "2026-06-01-0.json.gz": [D02_OLD_AT_T],
+        "2026-06-02-0.json.gz": [D02_RECENT_FUTURE],
+        "2026-06-21-0.json.gz": [D02_LATE_LABEL],
+        "2026-07-01-0.json.gz": [D02_AT_LABEL_END],
+    },
+    "detector/D03-contribution-actions": {
+        "2026-05-24-0.json.gz": [
+            D03_PUSH, D03_PR_OPEN, D03_ISSUE_CLOSE, D03_REVIEW_CREATE,
+            D03_COMMENT, D03_PR_CLOSE, D03_ISSUE_OPEN,
+        ],
+    },
+    "detector/D04-bot-filters": {
+        "2026-05-24-0.json.gz": D04_BOT_INPUT,
+    },
+    "detector/D05-single-author-exclusion": {
+        "2026-05-24-0.json.gz": [D05_SINGLE, D05_BASE_PUSH, D05_SECOND_STAR],
+    },
+    "detector/D06-distinct-stargazers-no-survivorship": {
+        "2026-05-24-0.json.gz": [
+            D06_REPEAT_STAR_A, D06_REPEAT_STAR_B, D06_REPEAT_STAR_C, D06_OTHER_STAR,
+        ],
+    },
+    "detector/D07-star-burst": {
+        "2026-05-22-0.json.gz": D07_BURST_INPUT,
+        "2026-05-24-0.json.gz": D07_NEAR_INPUT,
+        "2026-05-12-0.json.gz": [D07_NEAR_LAST],
+    },
+    "detector/D08-label-ties": {
+        "2026-05-24-0.json.gz": [D08_STARS_1A, D08_STARS_1B, D08_STARS_2A, D08_STARS_2B],
+        "2026-06-02-0.json.gz": D08_NEW_1 + D08_NEW_2,
+    },
+    "detector/D09-label-floor": {
+        "2026-05-24-0.json.gz": [D09_STARS_1A, D09_STARS_1B, D09_STARS_2A, D09_STARS_2B],
+        "2026-06-02-0.json.gz": D09_NEW_1 + D09_NEW_2,
+    },
+    "detector/D01-window-edges-point-in-time": {
+        "2026-05-02-0.json.gz": [D01_FORK_A, D01_FORK_B],
+        "2026-05-25-0.json.gz": [D01_RELEASE],
+        "2026-05-31-0.json.gz": [D01_LATE_AVAILABLE],
+        "2026-06-01-0.json.gz": [D01_AT_CUTOFF],
+    },
+    "detector/D02-label-windows-newness": {
+        "2026-03-02-23.json.gz": [D02_OLD_HISTORY],
+        "2026-05-17-0.json.gz": [D02_RECENT_HISTORY],
+        "2026-05-24-0.json.gz": [D02_CANDIDATE_STAR],
+        "2026-06-01-0.json.gz": [D02_OLD_AT_T],
+        "2026-06-02-0.json.gz": [D02_RECENT_FUTURE],
+        "2026-06-21-0.json.gz": [D02_LATE_LABEL],
+        "2026-07-01-0.json.gz": [D02_AT_LABEL_END],
+    },
+    "detector/D03-contribution-actions": {
+        "2026-05-24-0.json.gz": [
+            D03_PUSH, D03_PR_OPEN, D03_ISSUE_CLOSE, D03_REVIEW_CREATE,
+            D03_COMMENT, D03_PR_CLOSE, D03_ISSUE_OPEN,
+        ],
+    },
+    "detector/D04-bot-filters": {
+        "2026-05-24-0.json.gz": D04_BOT_INPUT,
+    },
+    "detector/D05-single-author-exclusion": {
+        "2026-05-24-0.json.gz": [D05_SINGLE, D05_BASE_PUSH, D05_SECOND_STAR],
+    },
+    "detector/D06-distinct-stargazers-no-survivorship": {
+        "2026-05-24-0.json.gz": [
+            D06_REPEAT_STAR_A, D06_REPEAT_STAR_B, D06_REPEAT_STAR_C, D06_OTHER_STAR,
+        ],
+    },
+    "detector/D07-star-burst": {
+        "2026-05-22-0.json.gz": D07_BURST_INPUT,
+        "2026-05-24-0.json.gz": D07_NEAR_INPUT,
+        "2026-05-12-0.json.gz": [D07_NEAR_LAST],
+    },
+    "detector/D08-label-ties": {
+        "2026-05-24-0.json.gz": [D08_STARS_1A, D08_STARS_1B, D08_STARS_2A, D08_STARS_2B],
+        "2026-06-02-0.json.gz": D08_NEW_1 + D08_NEW_2,
+    },
+    "detector/D09-label-floor": {
+        "2026-05-24-0.json.gz": [D09_STARS_1A, D09_STARS_1B, D09_STARS_2A, D09_STARS_2B],
+        "2026-06-02-0.json.gz": D09_NEW_1 + D09_NEW_2,
+    },
 }
 
-# Only live-ingestion fixtures have an observed availability manifest.
+# Manifests are emitted for live-ingestion and detector fixtures.
 AVAILABLE_AT = {
     "F28-manifest-overrides-backfill": [
         ("2026-09-01T00:00:00Z", "2026-09-01T06:59:58.5Z"),
@@ -414,6 +631,86 @@ AVAILABLE_AT = {
     ],
     "F32-mixed-backfill-and-live": [
         ("2026-09-01T00:00:00Z", "2026-09-01T07:00:00Z"),
+    ],
+    "detector/D01-window-edges-point-in-time": [
+        ("2026-05-02T00:00:00Z", "2026-05-02T07:00:00Z"),
+        ("2026-05-25T00:00:00Z", "2026-05-25T07:00:00Z"),
+        ("2026-05-31T00:00:00Z", "2026-06-01T01:00:00Z"),
+        ("2026-06-01T00:00:00Z", "2026-06-01T00:00:00Z"),
+    ],
+    "detector/D02-label-windows-newness": [
+        ("2026-03-02T23:00:00Z", "2026-03-03T06:00:00Z"),
+        ("2026-05-17T00:00:00Z", "2026-05-17T07:00:00Z"),
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+        ("2026-06-01T00:00:00Z", "2026-06-01T07:00:00Z"),
+        ("2026-06-02T00:00:00Z", "2026-06-02T07:00:00Z"),
+        ("2026-06-21T00:00:00Z", "2026-07-01T08:00:00Z"),
+        ("2026-07-01T00:00:00Z", "2026-07-01T07:00:00Z"),
+    ],
+    "detector/D03-contribution-actions": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+    ],
+    "detector/D04-bot-filters": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+    ],
+    "detector/D05-single-author-exclusion": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+    ],
+    "detector/D06-distinct-stargazers-no-survivorship": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+    ],
+    "detector/D07-star-burst": [
+        ("2026-05-12T00:00:00Z", "2026-05-12T07:00:00Z"),
+        ("2026-05-22T00:00:00Z", "2026-05-22T07:00:00Z"),
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+    ],
+    "detector/D08-label-ties": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+        ("2026-06-02T00:00:00Z", "2026-06-02T07:00:00Z"),
+    ],
+    "detector/D09-label-floor": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+        ("2026-06-02T00:00:00Z", "2026-06-02T07:00:00Z"),
+    ],
+    "detector/D01-window-edges-point-in-time": [
+        ("2026-05-02T00:00:00Z", "2026-05-02T07:00:00Z"),
+        ("2026-05-25T00:00:00Z", "2026-05-25T07:00:00Z"),
+        ("2026-05-31T00:00:00Z", "2026-06-01T01:00:00Z"),
+        ("2026-06-01T00:00:00Z", "2026-06-01T07:00:00Z"),
+    ],
+    "detector/D02-label-windows-newness": [
+        ("2026-03-02T23:00:00Z", "2026-03-03T06:00:00Z"),
+        ("2026-05-17T00:00:00Z", "2026-05-17T07:00:00Z"),
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+        ("2026-06-01T00:00:00Z", "2026-06-01T07:00:00Z"),
+        ("2026-06-02T00:00:00Z", "2026-06-02T07:00:00Z"),
+        ("2026-06-21T00:00:00Z", "2026-07-01T08:00:00Z"),
+        ("2026-07-01T00:00:00Z", "2026-07-01T07:00:00Z"),
+    ],
+    "detector/D03-contribution-actions": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+    ],
+    "detector/D04-bot-filters": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+    ],
+    "detector/D05-single-author-exclusion": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+    ],
+    "detector/D06-distinct-stargazers-no-survivorship": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+    ],
+    "detector/D07-star-burst": [
+        ("2026-05-12T00:00:00Z", "2026-05-12T07:00:00Z"),
+        ("2026-05-22T00:00:00Z", "2026-05-22T07:00:00Z"),
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+    ],
+    "detector/D08-label-ties": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+        ("2026-06-02T00:00:00Z", "2026-06-02T07:00:00Z"),
+    ],
+    "detector/D09-label-floor": [
+        ("2026-05-24T00:00:00Z", "2026-05-24T07:00:00Z"),
+        ("2026-06-02T00:00:00Z", "2026-06-02T07:00:00Z"),
     ],
 }
 
