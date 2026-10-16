@@ -150,3 +150,8 @@ These are places where `01-event-semantics.md` v0.2 was silent or ambiguous, so 
 - **Options:** (a) don't store `payload_raw` in the month run; it is reachable from `(source_file_hour, source_line)` plus the source file, so it would be fetched on demand, and no R1–R7 output reads it; (b) store it compressed (e.g. zstd per row); this still needs measuring, and it probably still doesn't fit; (c) run on a bigger disk.
 - **Decision:** option (a). Gate 1 runs store `payload_raw` as null. The payload stays recoverable via `source_file_hour` + `source_line`, the manifest SHA-256 (§8) and `record_hash` (§2, v0.12).
 - **Depends:** none (no fixture is affected).
+
+## G33. `available_at` manifest validation (02 §8): OPEN 2026-10-15 (pipeline)
+- **Gap:** 02 §8 only says a value without an offset is an error. It doesn't cover: a repeated hour; more than 6 fractional digits; a non-`Z` offset; a bad header; listed hours outside the requested range; an `available_at` earlier than `source_file_hour + 1h`.
+- **Provisional (pipeline):** a repeated hour, a bad header, or a value that isn't the §2 Q3 instant form (offset required, 1–6 fractional digits) is an error, and the run stops. Any offset is accepted and converted to UTC. Listed hours outside the requested range are ignored. An early `available_at` is used as given.
+- **Depends:** none yet (verifier fixtures pending, 02 §8.3).

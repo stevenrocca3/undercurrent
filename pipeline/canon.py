@@ -6,6 +6,7 @@ run in the §2 order and the first match wins. `CanonStore` writes canonical
 records and quarantined lines to a DuckDB file on disk.
 """
 
+import csv
 import hashlib
 import json
 import re
@@ -14,6 +15,8 @@ from datetime import datetime, timedelta, timezone
 from json.decoder import scanstring
 
 import duckdb
+
+from pipeline.ingest import parse_timestamp
 
 SCHEMA_VERSION = "canon-v1"
 AVAILABILITY_LAG = timedelta(hours=6)  # L, spec §4 (OPEN-2)
@@ -220,6 +223,33 @@ def spool_hour(read, spool_dir):
     return read, counts
 
 
+def read_manifest(path):
+    """02 §8 available_at manifest: {naive UTC hour: naive UTC available_at}.
+
+    available_at needs an explicit offset (the §2 Q3 form). A bad header, a bad
+    value or a repeated hour is an error (G33)."""
+    manifest = {}
+    with open(path, encoding="utf-8", newline="") as f:
+        rows = csv.reader(f)
+        if next(rows, None) != ["source_file_hour", "available_at"]:
+            raise ValueError(f"{path}: header must be source_file_hour,available_at")
+        for hour_text, at_text in rows:
+            hour = parse_timestamp(hour_text).replace(tzinfo=None)
+            available_at = parse_created_at(at_text)
+            if available_at is None:
+                raise ValueError(f"{path}: available_at needs an ISO-8601 instant with an offset: {at_text!r}")
+            if hour in manifest:
+                raise ValueError(f"{path}: hour listed twice: {hour_text}")
+            manifest[hour] = available_at
+    return manifest
+
+
+def available_at(hour, manifest):
+    """The manifest's value for the hour, else the §4 backfill source_file_hour + 1h + L (naive UTC)."""
+    hour = hour.astimezone(timezone.utc).replace(tzinfo=None)
+    return manifest.get(hour, hour + timedelta(hours=1) + AVAILABILITY_LAG)
+
+
 class CanonStore:
     """canon-v1 and quarantine tables in a DuckDB file, loaded one hour's spool files at a time."""
 
@@ -231,10 +261,10 @@ class CanonStore:
         for name, columns in (("canon", CANON_COLUMNS), ("quarantine", QUARANTINE_COLUMNS)):
             self.con.execute(f"CREATE TABLE {name} ({', '.join(f'{c} {t}' for c, t in columns.items())})")
 
-    def load_hour(self, hour, spool_dir):
-        """Insert one hour's spool files, then delete them."""
+    def load_hour(self, hour, spool_dir, available_at):
+        """Insert one hour's spool files, then delete them. available_at is naive UTC."""
         hour = hour.astimezone(timezone.utc).replace(tzinfo=None)
-        params = {"source_file_hour": hour, "available_at": hour + timedelta(hours=1) + AVAILABILITY_LAG,
+        params = {"source_file_hour": hour, "available_at": available_at,
                   "ingested_at": self.ingested_at, "schema_version": SCHEMA_VERSION}
         canon_path, quarantine_path = spool_paths(spool_dir, hour)
         self._insert("canon", canon_path, {c: CANON_COLUMNS[c] for c in SPOOLED}, params,
