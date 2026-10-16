@@ -42,7 +42,8 @@ A note's own **Status** line records the moment it was written (often "not pushe
 | 2026-10-15-readme-refresh | README: what the project is, how it is verified, Gate 1 result, how to run | #23 |
 | 2026-10-15-spec-02-live-ingestion-draft | spec 02 draft: live ingestion, delay measurement, Gate 2 | #24 |
 | 2026-10-15-spec-02-approved-v0.13 | spec 02 approved (14-day window, 24 h deadline); spec 01 v0.13 | #24 |
-| 2026-10-15-reference-available-at | reference: `--available-at` manifest | — |
-| 2026-10-15-live-ingestion-briefs | briefs for live ingestion (pipeline, verifier); 02 v0.3 manifest format | — |
+| 2026-10-15-reference-available-at | reference: `--available-at` manifest | #25 |
+| 2026-10-15-live-ingestion-briefs | briefs for live ingestion (pipeline, verifier); 02 v0.3 manifest format | #25 |
+| 2026-10-15-copilot-instructions | Copilot instructions and quota-saving settings | — |
 
 Pipeline notes (`2026-10-15-pipeline-*`) live on the `pipeline` branch until it merges.
