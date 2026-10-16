@@ -1,12 +1,14 @@
 """Build a flat input folder from a live fetcher root (02 §5, §6, §8.4).
 
-    python tools/archive_input.py ROOT OUT_DIR
+    python tools/archive_input.py ROOT OUT_DIR [MANIFEST]
 
 ROOT holds `fetch_log.csv` and `archive/YYYY-MM-DD-H/<sha256>.json.gz`. For every
 hour, the final outcome (a `success` or `deadline` row) names the one file that
 is ingested; OUT_DIR gets `YYYY-MM-DD-H.json.gz` as a symlink to it. A `deadline`
 row without a file is a missing hour: no link. `late` and `republished` files
-are never linked.
+are never linked. MANIFEST, if given, gets the `available_at` manifest (02 §8):
+every final outcome that has an `available_at`, in hour order; missing hours
+are not listed, so they use the backfill rule.
 
 Stops (exit 1) if an hour has more than one final row, or a named file is absent
 or its SHA-256 differs. Standard library only; imports neither implementation.
@@ -34,7 +36,7 @@ def sha256(path):
     return d.hexdigest()
 
 
-def build(root, out):
+def build(root, out, manifest=None):
     with open(root / "fetch_log.csv", newline="", encoding="utf-8") as f:
         finals = [r for r in csv.DictReader(f) if r["outcome"] in FINAL]
     names = [hour_name(r["source_file_hour"]) for r in finals]
@@ -49,15 +51,19 @@ def build(root, out):
         if not src.is_file() or sha256(src) != r["sha256"]:
             raise ValueError(f"{src}: absent or SHA-256 differs from the fetch log (02 §8.4)")
         (out / f"{name}.json.gz").symlink_to(src.resolve())
+    if manifest:
+        listed = sorted((r["source_file_hour"], r["available_at"]) for r in finals if r["available_at"])
+        Path(manifest).write_text("source_file_hour,available_at\n" + "".join(f"{h},{a}\n" for h, a in listed),
+                                  encoding="utf-8")
     return len(finals)
 
 
 def main(argv):
-    if len(argv) != 3:
+    if len(argv) not in (3, 4):
         print(__doc__, file=sys.stderr)
         return 2
     try:
-        n = build(Path(argv[1]), Path(argv[2]))
+        n = build(Path(argv[1]), Path(argv[2]), argv[3] if len(argv) == 4 else None)
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

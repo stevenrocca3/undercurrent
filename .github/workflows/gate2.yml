@@ -1,0 +1,31 @@
+# Gate 2 evidence run (02-live-ingestion.md §9). Started by hand after the
+# window's last hour is final (2026-10-31T06:00Z at the latest, 02 §7). Runs
+# on the self-hosted Mac runner: it copies the fetcher root from the VM, and
+# reads the live run's output from ~/undercurrent-data/live (made there by
+# `python -m pipeline live` with the cutoffs in tools/gate2_config.json).
+name: gate2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  gate2:
+    runs-on: self-hosted
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3.13 -m venv .venv && .venv/bin/pip install -q -r requirements.txt
+      # rsync never deletes here: the copy only grows, like the archive.
+      - run: rsync -a -e "ssh -i $HOME/.ssh/undercurrent_oci" opc@150.136.138.5:/home/opc/undercurrent-data/fetcher/ "$HOME/undercurrent-data/fetcher/"
+      - run: caffeinate -i tools/gate2.sh "$HOME/undercurrent-data/fetcher" "$HOME/undercurrent-data/live" "$RUNNER_TEMP/gate2"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate2-evidence
+          path: |
+            evidence/gate2.json
+            evidence/delay-report.json
+            ${{ runner.temp }}/gate2/checks.tsv
+            ${{ runner.temp }}/gate2/*.log
+            ${{ runner.temp }}/gate2/available_at.csv
+          if-no-files-found: warn

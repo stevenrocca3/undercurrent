@@ -163,3 +163,14 @@ These are places where `01-event-semantics.md` v0.2 was silent or ambiguous, so 
   - Clock offsets go to a separate `clock.csv` (`checked_at, source, offset_seconds, error`; 02 §5.4), not to `outcome = clock` rows. This keeps the fetch log at one row per attempt, and gives the delay report a number.
   - Also written into 02: `republished` in the outcome list; an hour's final outcome is its `success` or `deadline` row; and §9 now says downtime past `D` makes an hour `missing`.
 - **Depends:** `pipeline/test_fetcher.py`.
+
+## G35. Percentile method and "round up" in the delay report (02 §7): DECIDED 2026-10-16 (owner, spec 02 v0.7)
+- **Gap:** §7 asks for p50, p90 and p99 of the delay but doesn't name a percentile method. With 336 samples, methods differ (nearest-rank, linear interpolation). It also says to round the p99 "up to the next whole hour" without saying what an exact whole hour becomes.
+- **Provisional (reference author, `tools/delay_report.py`):** nearest-rank (the value at rank ⌈q·n⌉), which is always an observed delay and matches §7's "about 3 hours above it". `L = ⌈p99 / 1 h⌉`, so an exact 2 h stays 2 h.
+- **Decision:** the provisional rule, now in 02 §7.
+- **Depends:** `tools/test_delay_report.py`.
+
+## G36. Gate 2 R5 cutoffs (02 §9): OPEN 2026-10-16
+- **Gap:** criterion 3 needs pipeline = reference on R1–R7, but 02 doesn't name R5's cutoffs for the live window. 01 §8 fixes Gate 1's: daily 00:00Z, chosen so every 7-day window lies inside the month.
+- **Provisional (reference author, `tools/gate2_config.json`):** the same rule on the live window. Daily at 06:00Z, 2026-10-23 → 2026-10-30 (8 cutoffs), so every `[t − 7d, t)` lies inside hours 2026-10-16T06Z..2026-10-30T05Z. The live run (`pipeline live --cutoff`) must use the same list.
+- **Depends:** `tools/gate2.sh`.
