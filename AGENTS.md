@@ -90,6 +90,33 @@ Both implementations: `run INPUT_DIR FIRST_HOUR LAST_HOUR OUT_DIR [--cutoff T ..
 - **Data lives outside the repo**, in `~/undercurrent-data/` (`gharchive/` inputs at 19 GB, `runs/` outputs). Never commit it, and don't open it to "look around".
 - **iCloud:** `~/Documents` is iCloud-synced and creates `name 2.ext` duplicates. They are git-ignored; never commit or edit them.
 
+## Autonomy: what agents start without asking Steven
+
+Roles: **Steven** is the project manager (decisions, merges, money). The **scrum master** is the main-repo Claude session (`~/Documents/undercurrent`); it runs routine testing and review between agents and owns code quality and refactoring. The **developers** are the pipeline Claude session and Copilot (verifier).
+
+**Any agent may, without asking:**
+- push its own branch (never `main`) and open or update a PR from it
+- request a PR review from Copilot (`gh pr edit N --add-reviewer @copilot`), or run a reviewer headless in its own checkout (`copilot -p`, `codex exec`)
+- ask Gemini for a second opinion on a choice that is not a spec decision (`gemini -p`)
+- ask another Claude session to run a check and report the result (SendMessage)
+- ask the verifier for fixtures that cover a spec section
+
+**Steven only:**
+- spec changes, and deciding any `G` gap (agents still open gaps as OPEN, with a provisional choice)
+- merges to `main`
+- anything that costs money or changes the cloud account; destructive actions on the fetcher VM (stop, delete, wiping the archive)
+- starting or restarting a Gate window
+- a refactor that is **too messy for the scrum master to fix in passing** (see below)
+
+**Messages between agents (independence, 01 §6).** A request names only spec sections, fixture IDs, commands, file paths, and pass/fail results. It never contains code, pseudo-code, or how either implementation works. Between `pipeline/` and `reference/` this holds in both directions, and nobody carries such knowledge between them. The scrum master is also the reference author, so it never reads `pipeline/`: code review of `pipeline/` goes to a helper that never touches `reference/` (e.g. a headless `codex exec` or `gemini -p` run in the pipeline checkout), not to Copilot, which as verifier never reads `pipeline/` either. The scrum master acts on the helper's findings (issue list, not code).
+
+**Refactoring and code quality (the scrum master).**
+- Has every agent's PR reviewed for the house style: the simplest code that meets the spec, names and comments matching the surrounding code, no dead code, tests beside the code, a change note per change.
+- Small issues: fixed in passing by whoever owns the file, or sent back to the author as a review comment.
+- Too messy (a module that needs restructuring, duplicated logic across files, a design that fights the spec): the scrum master writes `changes/YYYY-MM-DD-refactor-<topic>.md` (what, why, proposed shape, risk) and stops for Steven, who sends out the work.
+
+**When to coordinate.** At the end of a brief step, when a gap opens, or when a PR is ready. Not on every commit: each headless run starts cold and costs tokens.
+
 ## Working rules (Steven's)
 
 - **Every change gets its own note** in `changes/YYYY-MM-DD-<topic>.md`: why, what changed, proof (commands and results), and what is still open. Add a line to `changes/README.md`.
